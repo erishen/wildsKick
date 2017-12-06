@@ -173,8 +173,6 @@ video.eventListener = function(player) {
         setTimeout(function () {
             playClickFlag = false;
         }, 100);
-
-
     });
 
     $('.js_reload').on('click', function () {

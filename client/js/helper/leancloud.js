@@ -51,7 +51,7 @@ leancloud.updateInkeObject = function(query, object, parameters){
         inkeLiveID, status, watchSeconds
     } = parameters;
 
-    console.log('updateInkeObject', status, watchSeconds);
+    console.log('updateInkeObject', inkeLiveID, status, watchSeconds);
     parameters.today = moment().format('YYYY-MM-DD');
     parameters.userAgent = window.navigator.userAgent;
 

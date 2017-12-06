@@ -42,7 +42,10 @@ var devConfig = {
     },
     plugins: [
         new webpack.HotModuleReplacementPlugin(),
-        new webpack.NoEmitOnErrorsPlugin()
+        new webpack.NoEmitOnErrorsPlugin(),
+        // Fixes warning in moment-with-locales.min.js
+        // Module not found: Error: Can't resolve './locale' in ...
+        new webpack.IgnorePlugin(/\.\/locale$/)
     ]
 };
 

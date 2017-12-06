@@ -10,7 +10,7 @@ var STORAGE_INKE_PLAYBEGIN_TIME_KEY = 'STORAGE_INKE_PLAYBEGIN_TIME_KEY';
 
 var inke = {};
 inke.logUserAction = function(parameters, player){
-    console.log('logUserAction', parameters);
+    console.log('logUserAction', parameters, window);
 
     leancloud.init();
     var inkeObject = leancloud.getObject('Inke');
@@ -38,7 +38,7 @@ inke.logUserAction = function(parameters, player){
     // 开始播放视频
     var playVideo = function(){
         var storageInkeLiveID = window.localStorage.getItem(STORAGE_INKE_LIVEID_KEY);
-        console.log('storageInkeLiveID', storageInkeLiveID);
+        console.log('playVideo_storageInkeLiveID', storageInkeLiveID, inkeLiveID, parameters);
 
         if(storageInkeLiveID == null || storageInkeLiveID == 0 || storageInkeLiveID != inkeLiveID)
         {
@@ -46,73 +46,86 @@ inke.logUserAction = function(parameters, player){
         }
         window.localStorage.setItem(STORAGE_INKE_PLAYBEGIN_TIME_KEY, (new Date()).getTime());
 
-        parameters.watchSeconds = 0;
-        parameters.status = 'play';
-        leancloud.updateInkeObject(inkeQuery, inkeObject, parameters);
+        var obj = _.cloneDeep(parameters);
+        obj.watchSeconds = 0;
+        obj.status = 'play';
+        leancloud.updateInkeObject(inkeQuery, inkeObject, obj);
     };
 
     // 暂停播放视频
     var pauseVideo = function(){
         var storageInkeLiveID = window.localStorage.getItem(STORAGE_INKE_LIVEID_KEY);
-        console.log('storageInkeLiveID', storageInkeLiveID);
+        console.log('pauseVideo_storageInkeLiveID', storageInkeLiveID, inkeLiveID, parameters);
 
+        var obj = _.cloneDeep(parameters);
         if(storageInkeLiveID == inkeLiveID)
         {
-            parameters.watchSeconds = getWatchSeconds();
+            obj.watchSeconds = getWatchSeconds();
         }
 
-        parameters.status = 'pause';
-        leancloud.updateInkeObject(inkeQuery, inkeObject, parameters);
+        obj.status = 'pause';
+        leancloud.updateInkeObject(inkeQuery, inkeObject, obj);
     };
 
     // 重新加载视频
     var reloadVideo = function(){
         var storageInkeLiveID = window.localStorage.getItem(STORAGE_INKE_LIVEID_KEY);
-        console.log('storageInkeLiveID', storageInkeLiveID);
+        console.log('reloadVideo_storageInkeLiveID', storageInkeLiveID, inkeLiveID);
 
         if(storageInkeLiveID != null && storageInkeLiveID != 0 && storageInkeLiveID != inkeLiveID) {
             window.localStorage.setItem(STORAGE_INKE_LIVEID_KEY, 0);
-            parameters.watchSeconds = getWatchSeconds();
-            parameters.inkeLiveID = storageInkeLiveID;
-            parameters.status = 'pause';
-            leancloud.updateInkeObject(inkeQuery, inkeObject, parameters);
+            var obj = _.cloneDeep(parameters);
+            obj.watchSeconds = getWatchSeconds();
+            obj.inkeLiveID = storageInkeLiveID;
+            obj.status = 'pause';
+            leancloud.updateInkeObject(inkeQuery, inkeObject, obj);
         }
     };
 
+    var currentState = 'start';
+
     if(player){
-        player.onPlayState(1, function(){
-            console.log('player_play', player.getVideoWidth(), player.getVideoHeight());
-            playVideo();
-        });
-        player.onPlayState(2, function(){
-            console.log('player_pause', player.getVideoWidth(), player.getVideoHeight());
-            pauseVideo();
-        });
         player.onPlayState(3, function(){
+            currentState = 'ended';
             console.log('player_ended');
             pauseVideo();
         });
     }
 
+    var oldStateBeforeLeave = '';
     // 监听页面可见
     document.addEventListener("visibilitychange", function(){
+        console.log('currentState', currentState, document.hidden);
+
         if(document.hidden) { // 用户离开了
-            pauseVideo();
+            oldStateBeforeLeave = currentState;
+            if(currentState == 'play')
+            {
+                $('.js_player').show();
+                player.pause();
+                currentState = 'pause';
+                pauseVideo();
+            }
         }
         else { // 用户回来了
-            playVideo();
+            if(oldStateBeforeLeave == 'play')
+            {
+                $('.js_player').hide();
+                player.play();
+                currentState = 'play';
+                playVideo();
+            }
         }
     });
 
-    /*
-    var playClickFlag = true;
+    var playClickFlag = false;
     var firstClickFlag = false;
 
     $('.js_player').on('click', function () {
         firstClickFlag = true;
         playClickFlag = true;
 
-        console.log('play', inkeLiveID, inkeUserID);
+        currentState = 'play';
         playVideo();
 
         setTimeout(function () {
@@ -122,15 +135,16 @@ inke.logUserAction = function(parameters, player){
 
     $('.js_player_cover').on('click', function () {
         if (firstClickFlag && !playClickFlag) {
-            console.log('pause', inkeLiveID, inkeUserID);
+            currentState = 'pause';
             pauseVideo();
         }
     });
-    */
 
     $('.js_reload').on('click', function () {
         console.log('reload', inkeLiveID, inkeUserID);
-        reloadVideo();
+
+        if(currentState == 'play')
+            reloadVideo();
     });
 
     $(document).ready(function(){
