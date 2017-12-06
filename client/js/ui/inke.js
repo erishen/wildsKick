@@ -16,7 +16,9 @@ inke.logUserAction = function(parameters, player){
     var inkeObject = leancloud.getObject('Inke');
     var inkeQuery = leancloud.getQuery('Inke');
 
-    var { inkeLiveID, inkeUserID } = parameters;
+    //var { inkeLiveID, inkeUserID } = parameters;
+    var inkeLiveID = parameters.inkeLiveID;
+    var inkeUserID = parameters.inkeUserID;
 
     parameters.hostname = window.location.hostname;
     parameters.href = window.location.origin + window.location.pathname + '?U=' + inkeUserID + '&L=' + inkeLiveID;

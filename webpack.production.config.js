@@ -1,3 +1,4 @@
+const webpack = require('webpack');
 const path = require('path');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
@@ -42,10 +43,7 @@ var productionConfig = [{
             allChunks: true
         }),
         new UglifyJSPlugin(),
-        new OptimizeCssAssetsPlugin(),
-        // Fixes warning in moment-with-locales.min.js
-        // Module not found: Error: Can't resolve './locale' in ...
-        new webpack.IgnorePlugin(/\.\/locale$/)
+        new OptimizeCssAssetsPlugin()
     ]
 }];
 
