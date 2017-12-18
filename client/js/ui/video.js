@@ -64,9 +64,6 @@ video.neplayerSetting = function(id, playerUrl){
             $('.vjs-volume-menu-button').css('display', 'none');
             $('.vjs-fullscreen-control').css('display', 'none');
             $('.vjs-big-play-button').css('display', 'none');
-
-            if(playerUrl.indexOf('mp4') == -1)
-                $('.vjs-control-bar').css('display', 'none');
         });
 
         if (playerUrl != '')
@@ -78,6 +75,8 @@ video.neplayerSetting = function(id, playerUrl){
             switch (urlType) {
                 case 'http':
                     if (lowUrl.indexOf('mp4') !== -1) {
+                        type = "video/mp4";
+                    } else if (lowUrl.indexOf('mov') !== -1) {
                         type = "video/mp4";
                     } else if (lowUrl.indexOf('flv') !== -1) {
                         type = "video/x-flv";

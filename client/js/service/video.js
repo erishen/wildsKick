@@ -6,5 +6,7 @@ var _ = require('../lib/lodash.min');
 var util = require('../helper/util');
 
 var video = {};
-
+video.getList = function(sucCallback, errCallback){
+    util.getJSON('/video/getList', sucCallback, errCallback);
+};
 module.exports = video;
