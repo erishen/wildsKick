@@ -48,6 +48,7 @@ videoService.getList(function(result){
 
         document.title = videoIndex + '.' + pathName;
         playerUrl = urlPrefix + pathName;
+        coverImageUrl = '';
         videoUI.init(videoId, coverImageUrl, playerUrl);
     }
 }, function(err){
