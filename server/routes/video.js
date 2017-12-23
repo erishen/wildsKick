@@ -8,7 +8,7 @@ var express = require('express'),
 var redis = require("redis");
 var version = require('../config/version');
 var rootName = '/movie';
-var redisFlag = false;
+var redisFlag = true;
 
 router.get('/', function(req, res) {
     res.render('video', { version: version });
