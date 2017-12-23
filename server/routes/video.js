@@ -45,7 +45,7 @@ router.get('/getList', function(req, res) {
         var redisClient = redis.createClient();
         redisClient.get(videoKey, function (err, replies) {
             console.log('replies: ' + replies);
-            if(replies == undefined || replies.length == 0){
+            if(replies == undefined || replies == '[]'){
                 getAllFiles(rootName, files);
                 redisClient.set(videoKey, JSON.stringify(files), 'EX', 3600); // expires 3600s
             }
