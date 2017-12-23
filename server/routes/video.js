@@ -7,7 +7,7 @@ var express = require('express'),
     router = express.Router();
 var redis = require("redis");
 var version = require('../config/version');
-var rootName = '/movie';
+var rootName = '/home/erishen/Videos';
 var redisFlag = true;
 
 router.get('/', function(req, res) {
@@ -45,7 +45,7 @@ router.get('/getList', function(req, res) {
         var redisClient = redis.createClient();
         redisClient.get(videoKey, function (err, replies) {
             console.log('replies: ' + replies);
-            if(replies == undefined){
+            if(replies == undefined || replies.length == 0){
                 getAllFiles(rootName, files);
                 redisClient.set(videoKey, JSON.stringify(files), 'EX', 3600); // expires 3600s
             }
