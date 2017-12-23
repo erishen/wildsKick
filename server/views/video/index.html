@@ -8,6 +8,9 @@
     <% if (env === "production") { %>
     <link rel="stylesheet" href="wildsPAGE/video/index.css?v=<%= version %>" />
     <% } %>
+    <script type="text/javascript">
+        window.ip = '<%= ip %>';
+    </script>
 </head>
 <body>
 <div class="livestream-video" style="display: none">

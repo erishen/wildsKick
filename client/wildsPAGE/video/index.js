@@ -14,7 +14,7 @@ var videoId = 'my_video_1';
 var playerUrl = 'http://vjs.zencdn.net/v/oceans.mp4';
 var coverImageUrl = 'http://vjs.zencdn.net/v/oceans.png';
 
-var urlPrefix = 'http://localhost:9999';
+var urlPrefix = 'http://' + window.ip + ':9999';
 
 // URL 参数设置: R = Random
 var urlObj = util.getUrlObj(window.location.search);
