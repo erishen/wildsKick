@@ -117,6 +117,12 @@ video.neplayerSetting = function(id, playerUrl){
             //console.log("playing");
         });
 
+        player.on('ended', function(){
+            $('.js_player').show();
+            $('.js_header').css('display', 'flex');
+            $('.js_operation').css('display', 'flex');
+        });
+
         player.on('error', function () {
             //console.log('error');
             $(".reload-sbg").css("height", $(window).height());

@@ -59,11 +59,16 @@ var setVideo = function(index){
 
                 if(isRandom){
                     $('.js_pre').hide();
+                    $('.js_random').hide();
+                    $('.js_direct').show();
                     $('.js_refresh').show();
                     $('.js_next').hide();
                 }
                 else {
+                    $('.js_direct').hide();
                     $('.js_refresh').hide();
+                    $('.js_random').show();
+
                     if(index == 0)
                         $('.js_pre').hide();
                     else if(index == filesLen - 1)
@@ -119,4 +124,12 @@ $('.js_next').click(function(){
 
 $('.js_refresh').click(function(){
     window.location.reload();
+});
+
+$('.js_direct').click(function(){
+    window.location.href = window.location.origin + window.location.pathname + '?I=' + videoIndex;
+});
+
+$('.js_random').click(function(){
+    window.location.href = window.location.origin + window.location.pathname + '?R';
 });
