@@ -147,6 +147,8 @@ video.eventListener = function(player) {
         if (firstClickFlag && !playClickFlag) {
             console.log('js_player_cover click');
             $('.js_player').show();
+            $('.js_header').css('display', 'flex');
+            $('.js_operation').css('display', 'flex');
             player.pause();
             playBtnFlag = false;
         }
@@ -157,6 +159,8 @@ video.eventListener = function(player) {
         playClickFlag = true;
         console.log('js_player click');
         $('.js_player').hide();
+        $('.js_operation').hide();
+        $('.js_header').hide();
 
         // iOS QQ 浏览器 特殊处理 （问题：Video 会藏在 body 后面）
         var userAgent = window.navigator.userAgent.toLowerCase();

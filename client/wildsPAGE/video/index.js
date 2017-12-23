@@ -20,6 +20,7 @@ var urlPrefix = 'http://' + window.ip + ':9999';
 var urlObj = util.getUrlObj(window.location.search);
 
 var isRandom = false;
+var videoFiles = [];
 var videoIndex = 0;
 
 if(urlObj){
@@ -30,27 +31,92 @@ if(urlObj){
         videoIndex = parseInt(urlObj.I, 10);
 }
 
+var setVideo = function(index){
+    console.log('setVideo_index', index);
+
+    if(videoFiles){
+        var filesLen = videoFiles.length;
+
+        if(filesLen > 0) {
+            if(index >= 0 && index < filesLen){
+                var fileObj = videoFiles[index];
+                var pathName = fileObj.pathName;
+                var mtimeMs = fileObj.mtimeMs;
+                var size = fileObj.size;
+
+                mtimeMs = moment(mtimeMs).format('YYYY-MM-DD HH:mm:ss');
+                size = parseInt(size / 1024 / 1024, 10) + 'MB';
+
+                console.log('mtimeMs', mtimeMs);
+                console.log('size', size);
+
+                var title = index + '(' + (filesLen - 1) + ').' + pathName;
+                document.title = title;
+                $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
+                playerUrl = urlPrefix + pathName;
+                coverImageUrl = '';
+                videoUI.init(videoId, coverImageUrl, playerUrl);
+
+                if(isRandom){
+                    $('.js_pre').hide();
+                    $('.js_refresh').show();
+                    $('.js_next').hide();
+                }
+                else {
+                    $('.js_refresh').hide();
+                    if(index == 0)
+                        $('.js_pre').hide();
+                    else if(index == filesLen - 1)
+                        $('.js_next').hide();
+                    else
+                    {
+                        $('.js_pre').show();
+                        $('.js_next').show();
+                    }
+                }
+            }
+        }
+        else {
+            videoUI.init(videoId, coverImageUrl, playerUrl);
+        }
+    }
+};
+
 videoService.getList(function(result){
     if(result){
-        var files = result.files;
-        var filesLen = files.length;
+        videoFiles = result.files;
 
         if(isRandom)
-            videoIndex = util.getRandomNum(0, filesLen - 1);
+            videoIndex = util.getRandomNum(0, videoFiles.length - 1);
 
-        console.log('videoIndex', videoIndex);
-        var fileObj = files[videoIndex];
-        var pathName = fileObj.pathName;
-        var mtimeMs = fileObj.mtimeMs;
-        var size = fileObj.size;
-        console.log('mtimeMs', moment(mtimeMs).format('YYYY-MM-DD HH:mm:ss'));
-        console.log('size', parseInt(size / 1024 / 1024, 10) + 'MB');
-
-        document.title = videoIndex + '.' + pathName;
-        playerUrl = urlPrefix + pathName;
-        coverImageUrl = '';
-        videoUI.init(videoId, coverImageUrl, playerUrl);
+        setVideo(videoIndex);
     }
 }, function(err){
     videoUI.init(videoId, coverImageUrl, playerUrl);
+});
+
+$('.js_pre').click(function(){
+    console.log('pre');
+    if(isRandom)
+        window.location.reload();
+    else
+    {
+        videoIndex--;
+        setVideo(videoIndex);
+    }
+});
+
+$('.js_next').click(function(){
+    console.log('next');
+    if(isRandom)
+        window.location.reload();
+    else
+    {
+        videoIndex++;
+        setVideo(videoIndex);
+    }
+});
+
+$('.js_refresh').click(function(){
+    window.location.reload();
 });
