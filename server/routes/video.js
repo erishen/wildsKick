@@ -89,6 +89,7 @@ router.get('/getList', function(req, res) {
 
 router.get('/getIndexFiles', function(req, res) {
     var index = 0;
+    var status = '';
     var files = [];
 
     if(redisFlag && redisClient) {
@@ -96,7 +97,14 @@ router.get('/getIndexFiles', function(req, res) {
             redisClient.get(videoIndexKey, function (indexErr, indexReplies) {
 
                 if(indexReplies != undefined && indexReplies != ''){
-                    index = parseInt(indexReplies, 10);
+                    var indexArr = indexReplies.split('.');
+                    var indexArrLen = indexArr.length;
+
+                    if(indexArrLen > 0)
+                        index = parseInt(indexArr[0], 10);
+
+                    if(indexArrLen > 1)
+                        status = indexArr[1];
                 }
 
                 if(fileReplies == undefined || fileReplies == '[]'){
@@ -107,27 +115,35 @@ router.get('/getIndexFiles', function(req, res) {
                     files = JSON.parse(fileReplies, true);
                 }
 
-                res.send({ files: files, index: index });
+                res.send({ files: files, index: index, status: status });
             });
         });
     }
     else
     {
         getAllFiles(rootName, files);
-        res.send({ files: files, index: 0 });
+        res.send({ files: files, index: 0, status: '' });
     }
 });
 
 router.get('/getIndex', function(req, res) {
     var index = 0;
+    var status = '';
 
     if(redisFlag && redisClient){
         redisClient.get(videoIndexKey, function (indexErr, indexReplies) {
             if(indexReplies != undefined && indexReplies != ''){
-                index = parseInt(indexReplies, 10);
+                var indexArr = indexReplies.split('.');
+                var indexArrLen = indexArr.length;
+
+                if(indexArrLen > 0)
+                    index = parseInt(indexArr[0], 10);
+
+                if(indexArrLen > 1)
+                    status = indexArr[1];
             }
 
-            res.send({ index: index });
+            res.send({ index: index, status: status });
         });
     }
     else
@@ -142,9 +158,12 @@ router.post('/setIndex', bodyParser.json(), function(req, res){
         var body = req.body;
         if(body){
             var index = body.index;
+            var status = body.status;
+
             if(index != undefined)
                 index = parseInt(index, 10);
-            redisClient.set(videoIndexKey, index, 'EX', expireSeconds);
+
+            redisClient.set(videoIndexKey, index + '.' + status, 'EX', expireSeconds);
         }
     }
     res.send({ flag: 'success' });

@@ -8,7 +8,6 @@ var playBtnFlag = false;
 var playClickFlag = false;
 var firstClickFlag = false;
 var video = {};
-
 video.init = function(id, coverImageUrl, playerUrl){
     var self = this;
 
@@ -23,6 +22,12 @@ video.init = function(id, coverImageUrl, playerUrl){
     var player = self.neplayerSetting(id, playerUrl);
     self.eventListener(player);
 
+    self.setCoverImageUrl(coverImageUrl);
+
+    $('.livestream-video').show();
+    return player;
+};
+video.setCoverImageUrl = function(coverImageUrl){
     if(coverImageUrl != '')
     {
         $('.vjs-poster').css({
@@ -31,9 +36,34 @@ video.init = function(id, coverImageUrl, playerUrl){
         });
         $('.vjs-poster').removeClass('vjs-hidden');
     }
+};
+video.setPlayerUrl = function(player, playerUrl) {
+    if (playerUrl != '') {
+        var lowUrl = playerUrl.toLowerCase();
+        var urlType = lowUrl.substring(0, 4);
+        var type = '';
 
-    $('.livestream-video').show();
-    return player;
+        switch (urlType) {
+            case 'http':
+                if (lowUrl.indexOf('mp4') !== -1) {
+                    type = "video/mp4";
+                } else if (lowUrl.indexOf('mov') !== -1) {
+                    type = "video/mp4";
+                } else if (lowUrl.indexOf('flv') !== -1) {
+                    type = "video/x-flv";
+                } else if (lowUrl.indexOf('m3u8') !== -1) {
+                    type = "application/x-mpegURL";
+                }
+                break;
+            case 'rtmp':
+                type = "rtmp/flv";
+                break;
+        }
+
+        if (type != '' && player) {
+            player.setDataSource({type: type, src: playerUrl});
+        }
+    }
 };
 video.neplayerSetting = function(id, playerUrl){
     console.log('neplayerSetting', id, playerUrl);
@@ -67,45 +97,18 @@ video.neplayerSetting = function(id, playerUrl){
             $('.vjs-big-play-button').css('display', 'none');
         });
 
-        if (playerUrl != '')
-        {
-            var lowUrl = playerUrl.toLowerCase();
-            var urlType = lowUrl.substring(0, 4);
-            var type = '';
-
-            switch (urlType) {
-                case 'http':
-                    if (lowUrl.indexOf('mp4') !== -1) {
-                        type = "video/mp4";
-                    } else if (lowUrl.indexOf('mov') !== -1) {
-                        type = "video/mp4";
-                    } else if (lowUrl.indexOf('flv') !== -1) {
-                        type = "video/x-flv";
-                    } else if (lowUrl.indexOf('m3u8') !== -1) {
-                        type = "application/x-mpegURL";
-                    }
-                    break;
-                case 'rtmp':
-                    type = "rtmp/flv";
-                    break;
-            }
-
-            if (type != '' && player)
-            {
-                player.setDataSource({ type: type, src: playerUrl });
-            }
-        }
+        self.setPlayerUrl(player, playerUrl);
 
         player.on('loadstart', function () {
             console.log('loadstart', player.getVideoWidth(), player.getVideoHeight());
         });
 
         player.on('progress', function () {
-            console.log('progress', player.getVideoWidth(), player.getVideoHeight());
+            //console.log('progress', player.getVideoWidth(), player.getVideoHeight());
         });
 
         player.on('canplay', function () {
-            console.log('canplay', player.getVideoWidth(), player.getVideoHeight());
+            //console.log('canplay', player.getVideoWidth(), player.getVideoHeight());
 
             if(!playBtnFlag)
             {
@@ -147,6 +150,7 @@ video.videojsSetting = function(id){
     return playerVideo;
 };
 video.play = function(player){
+    var self = this;
     firstClickFlag = true;
     playClickFlag = true;
     console.log('play');
@@ -173,6 +177,7 @@ video.play = function(player){
     }, 100);
 };
 video.pause = function(player){
+    var self = this;
     if (firstClickFlag && !playClickFlag) {
         console.log('pause');
 
@@ -182,6 +187,7 @@ video.pause = function(player){
 
         if(player)
             player.pause();
+
         playBtnFlag = false;
     }
 };
