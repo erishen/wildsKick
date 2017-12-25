@@ -22,6 +22,8 @@ var urlObj = util.getUrlObj(window.location.search);
 var isRandom = false;
 var videoFiles = [];
 var videoIndex = 0;
+var newVideoIndex = 0;
+var player = null;
 
 if(urlObj){
     if(urlObj.R != undefined)
@@ -30,6 +32,27 @@ if(urlObj){
     if(urlObj.I != undefined)
         videoIndex = parseInt(urlObj.I, 10);
 }
+
+var getIndex = function(){
+    videoService.getIndex(function(result){
+        console.log('getIndex_result', result);
+        if(result){
+            newVideoIndex = parseInt(result.index, 10);
+
+            if(videoIndex != newVideoIndex)
+            {
+                videoIndex = newVideoIndex;
+                setVideo(videoIndex);
+
+                if(player){
+                    videoUI.play(player);
+                }
+            }
+        }
+    });
+
+    setTimeout(getIndex, 1000);
+};
 
 var setVideo = function(index){
     console.log('setVideo_index', index);
@@ -55,34 +78,27 @@ var setVideo = function(index){
                 $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
                 playerUrl = urlPrefix + pathName;
                 coverImageUrl = '';
-                videoUI.init(videoId, coverImageUrl, playerUrl);
+                player = videoUI.init(videoId, coverImageUrl, playerUrl);
 
-                if(isRandom){
+                if(index == 0)
+                {
                     $('.js_pre').hide();
-                    $('.js_random').hide();
-                    $('.js_direct').show();
-                    $('.js_refresh').show();
+                    $('.js_next').show();
+                }
+                else if(index == filesLen - 1)
+                {
+                    $('.js_pre').show();
                     $('.js_next').hide();
                 }
-                else {
-                    $('.js_direct').hide();
-                    $('.js_refresh').hide();
-                    $('.js_random').show();
-
-                    if(index == 0)
-                        $('.js_pre').hide();
-                    else if(index == filesLen - 1)
-                        $('.js_next').hide();
-                    else
-                    {
-                        $('.js_pre').show();
-                        $('.js_next').show();
-                    }
+                else
+                {
+                    $('.js_pre').show();
+                    $('.js_next').show();
                 }
             }
         }
         else {
-            videoUI.init(videoId, coverImageUrl, playerUrl);
+            player = videoUI.init(videoId, coverImageUrl, playerUrl);
         }
     }
 };
@@ -96,40 +112,42 @@ videoService.getList(function(result){
 
         setVideo(videoIndex);
     }
+
+    getIndex();
 }, function(err){
-    videoUI.init(videoId, coverImageUrl, playerUrl);
+    player = videoUI.init(videoId, coverImageUrl, playerUrl);
 });
 
-$('.js_pre').click(function(){
-    console.log('pre');
-    if(isRandom)
-        window.location.reload();
-    else
-    {
-        videoIndex--;
-        setVideo(videoIndex);
+var getNewHref = function(params){
+    return window.location.origin + window.location.pathname + params;
+};
+
+var getRandomNum = function(callback){
+    var randomIndex = util.getRandomNum(0, videoFiles.length - 1);
+    if(videoIndex == randomIndex)
+        getRandomNum(callback);
+    else{
+        videoIndex = randomIndex;
+        return callback && callback();
     }
+};
+
+$('.js_pre').click(function(){
+    videoIndex--;
+    setVideo(videoIndex);
 });
 
 $('.js_next').click(function(){
-    console.log('next');
-    if(isRandom)
-        window.location.reload();
-    else
-    {
-        videoIndex++;
-        setVideo(videoIndex);
-    }
-});
-
-$('.js_refresh').click(function(){
-    window.location.reload();
+    videoIndex++;
+    setVideo(videoIndex);
 });
 
 $('.js_direct').click(function(){
-    window.location.href = window.location.origin + window.location.pathname + '?I=' + videoIndex;
+    window.location.href = getNewHref('?I=' + videoIndex);
 });
 
 $('.js_random').click(function(){
-    window.location.href = window.location.origin + window.location.pathname + '?R';
+    getRandomNum(function(){
+        setVideo(videoIndex);
+    });
 });

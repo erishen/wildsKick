@@ -5,7 +5,8 @@ var $ = require('../lib/jquery-3.2.1.min');
 var _ = require('../lib/lodash.min');
 
 var playBtnFlag = false;
-
+var playClickFlag = false;
+var firstClickFlag = false;
 var video = {};
 
 video.init = function(id, coverImageUrl, playerUrl){
@@ -145,43 +146,54 @@ video.videojsSetting = function(id){
     }
     return playerVideo;
 };
+video.play = function(player){
+    firstClickFlag = true;
+    playClickFlag = true;
+    console.log('play');
+
+    $('.js_player').hide();
+    $('.js_operation').hide();
+    $('.js_header').hide();
+
+    // iOS QQ 浏览器 特殊处理 （问题：Video 会藏在 body 后面）
+    var userAgent = window.navigator.userAgent.toLowerCase();
+    if (/iphone|ipad|ipod/.test(userAgent) && /mqqbrowser/.test(userAgent)) {
+        $("body").css('background-color', 'transparent');
+        $(".video-content").hide();
+    }
+
+    if(player)
+        player.play();
+
+    playBtnFlag = true;
+    $('.vjs-poster').addClass('vjs-hidden');
+
+    setTimeout(function () {
+        playClickFlag = false;
+    }, 100);
+};
+video.pause = function(player){
+    if (firstClickFlag && !playClickFlag) {
+        console.log('pause');
+
+        $('.js_player').show();
+        $('.js_header').css('display', 'flex');
+        $('.js_operation').css('display', 'flex');
+
+        if(player)
+            player.pause();
+        playBtnFlag = false;
+    }
+};
 video.eventListener = function(player) {
-    var playClickFlag = false;
-    var firstClickFlag = false;
+    var self = this;
 
     $('.js_player_cover').on('click', function () {
-        if (firstClickFlag && !playClickFlag) {
-            console.log('js_player_cover click');
-            $('.js_player').show();
-            $('.js_header').css('display', 'flex');
-            $('.js_operation').css('display', 'flex');
-            player.pause();
-            playBtnFlag = false;
-        }
+        self.pause(player);
     });
 
     $('.js_player').on('click', function () {
-        firstClickFlag = true;
-        playClickFlag = true;
-        console.log('js_player click');
-        $('.js_player').hide();
-        $('.js_operation').hide();
-        $('.js_header').hide();
-
-        // iOS QQ 浏览器 特殊处理 （问题：Video 会藏在 body 后面）
-        var userAgent = window.navigator.userAgent.toLowerCase();
-        if (/iphone|ipad|ipod/.test(userAgent) && /mqqbrowser/.test(userAgent)) {
-            $("body").css('background-color', 'transparent');
-            $(".video-content").hide();
-        }
-
-        player.play();
-        playBtnFlag = true;
-        $('.vjs-poster').addClass('vjs-hidden');
-
-        setTimeout(function () {
-            playClickFlag = false;
-        }, 100);
+        self.play(player);
     });
 
     $('.js_reload').on('click', function () {

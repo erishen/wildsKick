@@ -6,11 +6,16 @@ var express = require('express'),
     fs = require('fs'),
     router = express.Router();
 var redis = require("redis");
+var bodyParser = require('body-parser');
 var version = require('../config/version');
 var rootName = '/home/erishen/Videos';
 var redisFlag = true;
+var videoFilesKey = 'video_files';
+var videoIndexKey = 'video_index';
+var expireSeconds = 3600;
+var redisClient = null;
 
-function getIPAdress(){
+var getIPAdress = function(){
     var interfaces = require('os').networkInterfaces();
     for(var devName in interfaces){
         var iface = interfaces[devName];
@@ -21,11 +26,7 @@ function getIPAdress(){
             }
         }
     }
-}
-
-router.get('/', function(req, res) {
-    res.render('video', { version: version, ip: getIPAdress() });
-});
+};
 
 var getAllFiles = function(dictionaryName, filesArray){
     var files = fs.readdirSync(dictionaryName);
@@ -50,24 +51,33 @@ var getAllFiles = function(dictionaryName, filesArray){
     });
 };
 
+router.get('/', function(req, res) {
+    if(redisFlag)
+        redisClient = redis.createClient();
+    res.render('video', { version: version, ip: getIPAdress() });
+});
+
+router.get('/videoControl', function(req, res) {
+    if(redisFlag)
+        redisClient = redis.createClient();
+    res.render('video/control', { version: version });
+});
+
 router.get('/getList', function(req, res) {
     var files = [];
 
-    if(redisFlag){
-        var videoKey = 'video_files';
-        var redisClient = redis.createClient();
-        redisClient.get(videoKey, function (err, replies) {
+    if(redisFlag && redisClient){
+        redisClient.get(videoFilesKey, function (err, replies) {
             console.log('replies: ' + replies);
             if(replies == undefined || replies == '[]'){
                 getAllFiles(rootName, files);
-                redisClient.set(videoKey, JSON.stringify(files), 'EX', 3600); // expires 3600s
+                redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
             }
             else {
                 files = JSON.parse(replies, true);
             }
 
             res.send({ files: files });
-            redisClient.quit();
         });
     }
     else
@@ -75,6 +85,69 @@ router.get('/getList', function(req, res) {
         getAllFiles(rootName, files);
         res.send({ files: files });
     }
+});
+
+router.get('/getIndexFiles', function(req, res) {
+    var index = 0;
+    var files = [];
+
+    if(redisFlag && redisClient) {
+        redisClient.get(videoFilesKey, function (fileErr, fileReplies) {
+            redisClient.get(videoIndexKey, function (indexErr, indexReplies) {
+
+                if(indexReplies != undefined && indexReplies != ''){
+                    index = parseInt(indexReplies, 10);
+                }
+
+                if(fileReplies == undefined || fileReplies == '[]'){
+                    getAllFiles(rootName, files);
+                    redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
+                }
+                else {
+                    files = JSON.parse(fileReplies, true);
+                }
+
+                res.send({ files: files, index: index });
+            });
+        });
+    }
+    else
+    {
+        getAllFiles(rootName, files);
+        res.send({ files: files, index: 0 });
+    }
+});
+
+router.get('/getIndex', function(req, res) {
+    var index = 0;
+
+    if(redisFlag && redisClient){
+        redisClient.get(videoIndexKey, function (indexErr, indexReplies) {
+            if(indexReplies != undefined && indexReplies != ''){
+                index = parseInt(indexReplies, 10);
+            }
+
+            res.send({ index: index });
+        });
+    }
+    else
+    {
+        res.send({ index: 0 });
+    }
+});
+
+router.post('/setIndex', bodyParser.json(), function(req, res){
+    if(redisFlag && redisClient) {
+        console.log('setIndex', req.body);
+        var body = req.body;
+        if(body){
+            var index = body.index;
+            if(index != undefined)
+                index = parseInt(index, 10);
+            redisClient.set(videoIndexKey, index, 'EX', expireSeconds);
+        }
+    }
+    res.send({ flag: 'success' });
 });
 
 module.exports = router;

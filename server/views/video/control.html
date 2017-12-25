@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Video Control</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <% if (env === "production") { %>
+    <link rel="stylesheet" href="wildsPAGE/videoControl/index.css?v=<%= version %>" />
+    <% } %>
+</head>
+<body>
+<div class="livestream-video-control">
+    <div class="head-area js_header">
+        <span class="js_title"></span>
+    </div>
+    <div class="result-area js_result"></div>
+    <div class="operation-area js_operation">
+        <div class="btn js_pre">PRE</div>
+        <div class="btn js_random">RANDOM</div>
+        <div class="btn js_next">NEXT</div>
+    </div>
+</div>
+<script src="wildsPAGE/videoControl/bundle.js?v=<%= version %>" type="text/javascript"></script>
+<% if (env !== "production" && reload === true) { %>
+<script src="reload/reload.js"></script>
+<% } %>
+</body>
+</html>

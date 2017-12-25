@@ -8,6 +8,7 @@ const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 var productionConfig = [{
     entry: {
         video: './client/wildsPAGE/video',
+        videoControl: './client/wildsPAGE/videoControl',
         inke: './client/wildsPAGE/inke',
         seniverse: './client/wildsPAGE/seniverse'
     },

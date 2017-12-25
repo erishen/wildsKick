@@ -7,6 +7,7 @@ var hotMiddlewareScript = 'webpack-hot-middleware/client?reload=true';
 var devConfig = {
     entry: {
         video: ['./client/wildsPAGE/video', hotMiddlewareScript],
+        videoControl: ['./client/wildsPAGE/videoControl', hotMiddlewareScript],
         inke: ['./client/wildsPAGE/inke', hotMiddlewareScript],
         seniverse: ['./client/wildsPAGE/seniverse', hotMiddlewareScript]
     },
