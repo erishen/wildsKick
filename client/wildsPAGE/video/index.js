@@ -213,7 +213,9 @@ var logUserAction = function(){
         var videoObj = videoFiles[videoIndex];
         videoObj.inkeLiveID = videoIndex.toString();
         videoObj.inkeType = 'Video';
-        inkeUI.name = 'Video';
+
+        var ipName = window.ip.split('.').join('_');
+        inkeUI.name = 'Video_' + ipName;
         inkeUI.logUserAction(videoObj, player);
     }
 };

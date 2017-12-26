@@ -166,7 +166,7 @@ router.post('/setIndex', bodyParser.json(), function(req, res){
             redisClient.set(videoIndexKey, index + '.' + status, 'EX', expireSeconds);
         }
     }
-    res.send({ flag: 'success' });
+    res.send({ flag: 'Successfully' });
 });
 
 module.exports = router;
