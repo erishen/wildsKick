@@ -7,6 +7,7 @@ var util = require('../../js/helper/util');
 var videoService = require('../../js/service/video');
 
 var videoFiles = [];
+var videoFilesLen = 0;
 var videoIndex = 0;
 var videoStatus = '';
 
@@ -14,10 +15,8 @@ var setVideo = function(index){
     console.log('setVideo_index', index);
 
     if(videoFiles){
-        var filesLen = videoFiles.length;
-
-        if(filesLen > 0) {
-            if(index >= 0 && index < filesLen){
+        if(videoFilesLen > 0) {
+            if(index >= 0 && index < videoFilesLen){
                 var fileObj = videoFiles[index];
                 var pathName = fileObj.pathName;
                 var mtimeMs = fileObj.mtimeMs;
@@ -29,7 +28,7 @@ var setVideo = function(index){
                 console.log('mtimeMs', mtimeMs);
                 console.log('size', size);
 
-                var title = index + '(' + (filesLen - 1) + ').' + pathName;
+                var title = index + '(' + (videoFilesLen - 1) + ').' + pathName;
                 document.title = title;
                 $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
                 return;
@@ -38,16 +37,6 @@ var setVideo = function(index){
     }
 
     $('.js_title').html('没有什么可控制的');
-};
-
-var getRandomNum = function(callback){
-    var randomIndex = util.getRandomNum(0, videoFiles.length - 1);
-    if(videoIndex == randomIndex)
-        getRandomNum(callback);
-    else{
-        videoIndex = randomIndex;
-        return callback && callback();
-    }
 };
 
 var setVideoIndex = function(){
@@ -67,8 +56,9 @@ videoService.getIndexFiles(function(result){
     if(result){
         videoIndex = parseInt(result.index, 10);
         videoFiles = result.files;
+        videoFilesLen = videoFiles.length;
 
-        if(videoIndex >= videoFiles.length)
+        if(videoIndex >= videoFilesLen)
             videoIndex = 0;
 
         setVideo(videoIndex);
@@ -85,7 +75,7 @@ $('.js_pre').click(function(){
 });
 
 $('.js_next').click(function(){
-    if(videoIndex <= videoFiles.length - 2){
+    if(videoIndex <= videoFilesLen - 2){
         videoIndex++;
         videoStatus = 'next';
         setVideo(videoIndex);
@@ -94,7 +84,8 @@ $('.js_next').click(function(){
 });
 
 $('.js_random').click(function(){
-    getRandomNum(function(){
+    util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
+        videoIndex = randomIndex;
         videoStatus = 'random';
         setVideo(videoIndex);
         setVideoIndex();

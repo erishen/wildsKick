@@ -92,6 +92,16 @@ util.getUrlObj = function(url){
 util.getRandomNum = function(min, max){
     return Math.floor(Math.random()*(max-min+1)+min);
 };
+util.getVideoRandomNum = function(index, length, callback){
+    var self = this;
+    var randomIndex = self.getRandomNum(0, length - 1);
+
+    if(index == randomIndex)
+        self.getVideoRandomNum(index, length, callback);
+    else{
+        return callback && callback(randomIndex);
+    }
+};
 util.getJSON = function(url, sucCallback, errCallback, alwaysCallback){
     //console.log('getJSON', url);
 
