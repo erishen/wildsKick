@@ -9,19 +9,37 @@ var STORAGE_INKE_LIVEID_KEY = 'STORAGE_INKE_LIVEID_KEY';
 var STORAGE_INKE_PLAYBEGIN_TIME_KEY = 'STORAGE_INKE_PLAYBEGIN_TIME_KEY';
 
 var inke = {};
+inke.name = 'Inke';
 inke.logUserAction = function(parameters, player){
-    console.log('logUserAction', parameters, window);
+    var self = this;
+    var inkeName = self.name;
+    console.log('logUserAction', parameters);
 
     leancloud.init();
-    var inkeObject = leancloud.getObject('Inke');
-    var inkeQuery = leancloud.getQuery('Inke');
+    var inkeObject = leancloud.getObject(inkeName);
+    var inkeQuery = leancloud.getQuery(inkeName);
 
-    //var { inkeLiveID, inkeUserID } = parameters;
+    var inkeType = parameters.inkeType;
     var inkeLiveID = parameters.inkeLiveID;
     var inkeUserID = parameters.inkeUserID;
 
     parameters.hostname = window.location.hostname;
-    parameters.href = window.location.origin + window.location.pathname + '?U=' + inkeUserID + '&L=' + inkeLiveID;
+
+    if(inkeType == undefined){
+        if(inkeLiveID != undefined){
+            parameters.href = window.location.origin + window.location.pathname + '?L=' + inkeLiveID;
+
+            if(inkeUserID != undefined)
+                parameters.href += '&U=' + inkeUserID;
+        }
+    }
+    else if(inkeType == 'Video'){
+        if(inkeLiveID != undefined)
+            parameters.href = window.location.origin + window.location.pathname + '?I=' + inkeLiveID;
+
+        STORAGE_INKE_LIVEID_KEY = 'STORAGE_VIDEO_LIVEID_KEY';
+        STORAGE_INKE_PLAYBEGIN_TIME_KEY = 'STORAGE_VIDEO_PLAYBEGIN_TIME_KEY';
+    }
 
     // 获取观看秒数
     var getWatchSeconds = function(){
@@ -143,14 +161,14 @@ inke.logUserAction = function(parameters, player){
     });
 
     $('.js_reload').on('click', function () {
-        console.log('reload', inkeLiveID, inkeUserID);
+        console.log('reload');
 
         if(currentState == 'play')
             reloadVideo();
     });
 
     $(document).ready(function(){
-        console.log('ready', inkeLiveID, inkeUserID);
+        console.log('ready');
         reloadVideo();
     });
 };

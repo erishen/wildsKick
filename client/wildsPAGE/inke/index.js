@@ -8,7 +8,6 @@ var _ = require('../../js/lib/lodash.min');
 var moment = require('../../js/lib/moment-with-locales.min');
 var videoUI = require('../../js/ui/video');
 var util = require('../../js/helper/util');
-var leancloud = require('../../js/helper/leancloud');
 var inkeService = require('../../js/service/inke');
 var inkeUI = require('../../js/ui/inke');
 
@@ -106,8 +105,8 @@ function getLiveAddr(liveid, uid, options){
     console.log('getLiveAddr', liveid, uid, options);
     inkeService.getLiveAddr(liveid, uid, function (data) {
         console.log('getLiveAddr_data', data);
-        var coverImageUrl = data.cover_img;
-        var playerUrl = data.file[0];
+        coverImageUrl = data.cover_img;
+        playerUrl = data.file[0];
         var player = videoUI.init(videoId, coverImageUrl, playerUrl);
 
         if(options == undefined)

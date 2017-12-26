@@ -47,7 +47,6 @@ leancloud.saveInkeObject = function(object, parameters){
 };
 leancloud.updateInkeObject = function(query, object, parameters){
     var self = this;
-    //var { inkeLiveID, status, watchSeconds } = parameters;
     var inkeLiveID = parameters.inkeLiveID;
     var status = parameters.status;
     var watchSeconds = parameters.watchSeconds;

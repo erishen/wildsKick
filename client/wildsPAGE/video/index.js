@@ -9,6 +9,7 @@ var moment = require('../../js/lib/moment-with-locales.min');
 var util = require('../../js/helper/util');
 var videoUI = require('../../js/ui/video');
 var videoService = require('../../js/service/video');
+var inkeUI = require('../../js/ui/inke');
 
 var videoId = 'my_video_1';
 var playerUrl = 'http://vjs.zencdn.net/v/oceans.mp4';
@@ -67,7 +68,7 @@ var getIndex = function(){
     stopGetIndex();
 
     videoService.getIndex(function(result){
-        console.log('getIndex_result', result, tmpVideoIndex, playerStatus);
+        console.log('getIndex_result', result, tmpVideoIndex);
         if(result){
             newVideoIndex = parseInt(result.index, 10);
             newVideoStatus = result.status;
@@ -87,22 +88,35 @@ var getIndex = function(){
                 else if(newVideoStatus == 'pause')
                     videoPause();
 
-                player.on('ended', function(){
+                player.off('ended').on('ended', function(){
                     switch (newVideoStatus){
                         case 'random':
-                            doRandom();
-                            videoPlay();
+                            stopGetIndex();
+                            doRandom(function(){
+                                tmpVideoIndex = videoIndex;
+                                videoPlay();
+                                setTimeout(getIndex, 3000);
+                            });
                             break;
                         case 'pre':
+                            stopGetIndex();
                             doPre();
+                            tmpVideoIndex = videoIndex;
                             videoPlay();
+                            setTimeout(getIndex, 3000);
                             break;
                         case 'next':
+                            stopGetIndex();
                             doNext();
+                            tmpVideoIndex = videoIndex;
                             videoPlay();
+                            setTimeout(getIndex, 3000);
                             break;
                         default:
                             videoPause();
+                            $('.js_player').show();
+                            $('.js_header').css('display', 'flex');
+                            $('.js_operation').css('display', 'flex');
                             break;
                     }
                 });
@@ -171,11 +185,13 @@ videoService.getIndexFiles(function(result){
             util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
                 videoIndex = randomIndex;
                 setVideo(videoIndex);
+                logUserAction();
             });
         }
         else if(directVideoIndex) {
             videoIndex = directVideoIndex;
             setVideo(videoIndex);
+            logUserAction();
         }
         else {
             setVideo(videoIndex);
@@ -191,6 +207,17 @@ videoService.getIndexFiles(function(result){
     player = videoUI.init(videoId, coverImageUrl, playerUrl);
 });
 
+// 记录用户观看时长到 LeanCloud
+var logUserAction = function(){
+    if(player && videoIndex >= 0 && videoIndex < videoFilesLen){
+        var videoObj = videoFiles[videoIndex];
+        videoObj.inkeLiveID = videoIndex.toString();
+        videoObj.inkeType = 'Video';
+        inkeUI.name = 'Video';
+        inkeUI.logUserAction(videoObj, player);
+    }
+};
+
 var getNewHref = function(params){
     return window.location.origin + window.location.pathname + params;
 };
@@ -203,31 +230,39 @@ var setVideoIndex = function(){
 var doPre = function(){
     if(videoIndex >= 1) {
         videoIndex--;
-        videoStatus = 'pre';
-        setVideo(videoIndex);
-        setVideoIndex();
     }
+    else {
+        videoIndex = videoFilesLen - 1;
+    }
+    videoStatus = 'pre';
+    setVideo(videoIndex);
+    setVideoIndex();
 };
 
 var doNext = function(){
     if(videoIndex <= videoFilesLen - 2) {
         videoIndex++;
-        videoStatus = 'next';
-        setVideo(videoIndex);
-        setVideoIndex();
     }
+    else {
+        videoIndex = 0;
+    }
+
+    videoStatus = 'next';
+    setVideo(videoIndex);
+    setVideoIndex();
 };
 
 var doDirect = function(){
     window.location.href = getNewHref('?I=' + videoIndex);
 };
 
-var doRandom = function(){
+var doRandom = function(callback){
     util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
         videoIndex = randomIndex;
         videoStatus = 'random';
         setVideo(videoIndex);
         setVideoIndex();
+        return callback && callback();
     });
 };
 
