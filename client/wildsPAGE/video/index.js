@@ -209,12 +209,16 @@ videoService.getIndexFiles(function(result){
 
 // 记录用户观看时长到 LeanCloud
 var logUserAction = function(){
+    var ipAddress = window.ip;
+    if(ipAddress == '172.25.143.1') // 该网络地址不记录 LeanCloud
+        return;
+
     if(player && videoIndex >= 0 && videoIndex < videoFilesLen){
         var videoObj = videoFiles[videoIndex];
         videoObj.inkeLiveID = videoIndex.toString();
         videoObj.inkeType = 'Video';
 
-        var ipName = window.ip.split('.').join('_');
+        var ipName = ipAddress.split('.').join('_');
         inkeUI.name = 'Video_' + ipName;
         inkeUI.logUserAction(videoObj, player);
     }
@@ -271,7 +275,9 @@ var doRandom = function(callback){
 $('.js_pre').click(doPre);
 $('.js_next').click(doNext);
 $('.js_direct').click(doDirect);
-$('.js_random').click(doRandom);
+$('.js_random').click(function(){
+    doRandom();
+});
 
 $('.js_player_cover').on('click', function () {
     if(!isRandom && !directVideoIndex)

@@ -15,6 +15,9 @@ var videoIndexKey = 'video_index';
 var expireSeconds = 3600;
 var redisClient = null;
 
+// 测试数据
+//rootName = 'D:/ERISHEN';
+
 var getIPAdress = function(){
     var interfaces = require('os').networkInterfaces();
     for(var devName in interfaces){
@@ -37,13 +40,22 @@ var getAllFiles = function(dictionaryName, filesArray){
         var fileStat = fs.lstatSync(pathName);
 
         if(!fileStat.isDirectory()) {
-            //console.log('fileStat', pathName, fileStat);
+            console.log('fileStat', pathName, fileStat);
             pathName = pathName.replace(rootName, '');
-            filesArray.push({
-                pathName: pathName,
-                mtimeMs: fileStat.mtimeMs,
-                size: fileStat.size
-            });
+
+            var pathObj = pathName.split('.');
+            var pathObjLen = pathObj.length;
+            if(pathObjLen > 1)
+            {
+                var pathSuffix = pathObj[1].toLowerCase();
+                if(pathSuffix == 'mp4' || pathSuffix == 'mov'){
+                    filesArray.push({
+                        pathName: pathName,
+                        mtimeMs: fileStat.mtimeMs,
+                        size: fileStat.size
+                    });
+                }
+            }
         }
         else {
             getAllFiles(pathName, filesArray);
