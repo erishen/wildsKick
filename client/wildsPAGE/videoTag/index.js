@@ -14,6 +14,9 @@ var getIndexTimeout = null;
 var tmpVideoIndex = 0;
 var newVideoIndex = 0;
 
+var screenWidth = $(window).width();
+console.log('screenWidth', screenWidth);
+
 // 视频信息相关内容显示
 var setVideo = function(index){
     console.log('setVideo_index', index);
@@ -35,28 +38,12 @@ var setVideo = function(index){
                 var title = index + '(' + (videoFilesLen - 1) + ').' + pathName;
                 document.title = title;
                 $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
-
-                displayIndexArea();
                 return;
             }
         }
     }
 
     $('.js_title').html('Nothing To Control');
-};
-
-// 保存当前视频序号到 Redis
-var setVideoIndex = function(){
-    videoService.setIndex({ index: videoIndex, status: videoStatus }, function(result){
-        console.log('setVideoIndex_result', result);
-        if(result){
-            var flag = result.flag;
-            $('.js_result').html(flag);
-            setTimeout(function(){
-                $('.js_result').html('');
-            }, 500);
-        }
-    });
 };
 
 // 停止延时获取
@@ -84,15 +71,9 @@ var getIndex = function(){
                 tmpVideoIndex = newVideoIndex;
                 setVideo(tmpVideoIndex);
             }
-
-            if(videoStatus != '') {
-                var obj = {};
-                obj.currentTarget = '.js_btn_' + videoStatus;
-                changeClickEffect(obj);
-            }
         }
 
-        getIndexTimeout = setTimeout(getIndex, 3000);
+        getIndexTimeout = setTimeout(getIndex, 1000);
     });
 };
 
@@ -111,32 +92,41 @@ videoService.getIndexFiles(function(result){
     }
 });
 
-// 显示与当前视频序号相关的其他序号
-var displayIndexArea = function(){
-    var content = [];
-    content.push('<div class="row">');
+// 获取后端接口 getTags
+videoService.getTags(function(result){
+    console.log('getTags', result);
+    if(result){
+        var resultLen = result.length;
+        var content = [];
 
-    if(videoIndex > 5)
-        content.push('<div class="btn btn-unclick btn-index">' + (videoIndex - 5) + '</div>');
-    else
-        content.push('<div class="btn btn-unclick btn-index">' + (0) + '</div>');
+        for(var i = 0; i < resultLen; i++){
 
-    if(videoIndex + 5 <= videoFilesLen - 1)
-        content.push('<div class="btn btn-unclick btn-index">' + (videoIndex + 5) + '</div>');
-    else
-        content.push('<div class="btn btn-unclick btn-index">' + (videoFilesLen - 1) + '</div>');
+            if(i == 0) {
+                content.push('<div class="row">');
+            }
+            else if(i % 4 == 0){
+                content.push('</div><div class="row">');
+            }
 
-    content.push('</div>');
+            var tag = result[i];
+            var tagId = tag.id;
+            var tagName = tag.name;
+            content.push('<div class="btn btn-unclick btn-tag" data-val="' + tagId + '">' + (tagName) + '</div>');
+        }
 
-    $('.js_index').html(content.join(''));
+        content.push('</div>');
 
-    $('.btn-index').click(function(e){
-        changeClickEffect(e);
-        videoIndex = parseInt($(e.currentTarget).html(), 10);
-        setVideo(videoIndex);
-        setVideoIndex();
-    });
-};
+        $('.js_tag').html(content.join(''));
+        $('.row').css({ width: screenWidth });
+
+        $('.btn-tag').click(function(e){
+            changeClickEffect(e);
+            var tagId = $(e.currentTarget).data('val');
+            console.log('tagId', tagId);
+            setTags(tagId);
+        });
+    }
+});
 
 // 增加点击效果
 var changeClickEffect = function(e){
@@ -144,51 +134,21 @@ var changeClickEffect = function(e){
     $(e.currentTarget).addClass('btn-click');
 };
 
-// DOM 事件绑定
-$('.js_btn_pre').click(function(e){
-    changeClickEffect(e);
-    if(videoIndex >= 1){
-        videoIndex--;
-    }
-    else {
-        videoIndex = videoFilesLen - 1;
-    }
-    videoStatus = 'pre';
-    setVideo(videoIndex);
-    setVideoIndex();
-});
+// 设置Tag
+var setTags = function(tagId){
+    var fileObj = videoFiles[videoIndex];
+    var pathName = fileObj.pathName;
+    var mtimeMs = fileObj.mtimeMs;
+    var size = fileObj.size;
 
-$('.js_btn_next').click(function(e){
-    changeClickEffect(e);
-    if(videoIndex <= videoFilesLen - 2){
-        videoIndex++;
-    }
-    else {
-        videoIndex = 0;
-    }
-    videoStatus = 'next';
-    setVideo(videoIndex);
-    setVideoIndex();
-});
-
-$('.js_btn_random').click(function(e){
-    changeClickEffect(e);
-    util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
-        videoIndex = randomIndex;
-        videoStatus = 'random';
-        setVideo(videoIndex);
-        setVideoIndex();
+    var data = {
+        tagId: tagId,
+        videoIndex:  videoIndex,
+        pathName: pathName,
+        mtimeMs: mtimeMs,
+        size: size
+    };
+    videoService.setTags(data, function(result){
+        console.log('setTags_result', result);
     });
-});
-
-$('.js_btn_play').click(function(e){
-    changeClickEffect(e);
-    videoStatus = 'play';
-    setVideoIndex();
-});
-
-$('.js_btn_pause').click(function(e){
-    changeClickEffect(e);
-    videoStatus = 'pause';
-    setVideoIndex();
-});
+};

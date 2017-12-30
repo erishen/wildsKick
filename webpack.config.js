@@ -8,6 +8,7 @@ var devConfig = {
     entry: {
         video: ['./client/wildsPAGE/video', hotMiddlewareScript],
         videoControl: ['./client/wildsPAGE/videoControl', hotMiddlewareScript],
+        videoTag: ['./client/wildsPAGE/videoTag', hotMiddlewareScript],
         inke: ['./client/wildsPAGE/inke', hotMiddlewareScript],
         seniverse: ['./client/wildsPAGE/seniverse', hotMiddlewareScript]
     },

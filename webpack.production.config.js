@@ -9,6 +9,7 @@ var productionConfig = [{
     entry: {
         video: './client/wildsPAGE/video',
         videoControl: './client/wildsPAGE/videoControl',
+        videoTag: './client/wildsPAGE/videoTag',
         inke: './client/wildsPAGE/inke',
         seniverse: './client/wildsPAGE/seniverse'
     },

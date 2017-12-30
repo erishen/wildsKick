@@ -5,18 +5,35 @@ var express = require('express'),
     path = require('path'),
     fs = require('fs'),
     router = express.Router();
+var mysql = require('mysql');
 var redis = require("redis");
 var bodyParser = require('body-parser');
+var url = require('url');
 var version = require('../config/version');
-var rootName = '/home/erishen/Videos';
+
 var redisFlag = true;
+var mysqlFlag = true;
+var rootName = '/home/erishen/Videos';
+// 测试数据
+//rootName = 'D:/ERISHEN';
+
 var videoFilesKey = 'video_files';
 var videoIndexKey = 'video_index';
 var expireSeconds = 3600;
 var redisClient = null;
+var mysqlConnection = null;
 
-// 测试数据
-//rootName = 'D:/ERISHEN';
+var initMysql = function(){
+    if(mysqlFlag && mysqlConnection == null){
+        mysqlConnection = mysql.createConnection({
+            host     : 'localhost',
+            user     : 'root',
+            password : 'password',
+            database : 'video'
+        });
+        mysqlConnection.connect();
+    }
+};
 
 var getIPAdress = function(){
     var interfaces = require('os').networkInterfaces();
@@ -33,14 +50,14 @@ var getIPAdress = function(){
 
 var getAllFiles = function(dictionaryName, filesArray){
     var files = fs.readdirSync(dictionaryName);
-    console.log('files', files);
+    //console.log('files', files);
 
     files.forEach(function(file){
         var pathName = dictionaryName + '/' + file;
         var fileStat = fs.lstatSync(pathName);
 
         if(!fileStat.isDirectory()) {
-            console.log('fileStat', pathName, fileStat);
+            //console.log('fileStat', pathName, fileStat);
             pathName = pathName.replace(rootName, '');
 
             var pathObj = pathName.split('.');
@@ -69,13 +86,123 @@ router.get('/', function(req, res) {
     res.render('video', { version: version, ip: getIPAdress() });
 });
 
+// 视频控制器
 router.get('/videoControl', function(req, res) {
     if(redisFlag)
         redisClient = redis.createClient();
     res.render('video/control', { version: version });
 });
 
-router.get('/getList', function(req, res) {
+// 视频Tag页面
+router.get('/videoTag', function(req, res){
+    if(mysqlFlag)
+        initMysql();
+    res.render('video/tag', { version: version });
+});
+
+// 新增 Tag
+router.get('/videoTagAdd', function(req, res){
+    if(mysqlFlag)
+        initMysql();
+
+    var query = url.parse(req.url, true).query;
+    console.log(query);
+    if(query){
+        var name = query.name;
+
+        if(name) {
+            if (mysqlConnection != null) {
+                mysqlConnection.query('select id from tags where name=?', name, function (error, results, fields) {
+                    if (error) throw error;
+                    if(results) {
+                        if (results.length == 0) {
+                            mysqlConnection.query('insert into tags(name,times,createDate)values(?,0,now())', name, function (insertError, insertResults, fields) {
+                                if (insertError) throw insertError;
+                                res.send('Add Successfully');
+                            });
+                        }
+                        else
+                        {
+                            res.send('Had been exist');
+                        }
+                    }
+                });
+            }
+        } else {
+            res.send('Please check url parameters');
+        }
+    }
+    else {
+        res.send('Please check url parameters');
+    }
+});
+
+// 删除 Tag
+router.get('/videoTagDel', function(req, res){
+    if(mysqlFlag)
+        initMysql();
+
+    var query = url.parse(req.url, true).query;
+    console.log(query);
+    if(query){
+        var name = query.name;
+
+        if(name){
+            if(mysqlConnection != null){
+                mysqlConnection.query('select id from tags where name=?', name, function (error, results, fields) {
+                    if (error) throw error;
+                    console.log('results', results);
+                    if(results) {
+                        if (results.length > 0) {
+                            var id = results[0].id;
+                            mysqlConnection.query('delete from tags_video where tagId=?', id, function (deleteError, deleteResults, fields) {
+                                if (deleteError)
+                                    throw deleteError;
+                                else{
+                                    mysqlConnection.query('delete from tags where id=?', id, function (deleteError2, deleteResults2, fields) {
+                                        if (deleteError2) throw deleteError2;
+                                        res.send('Delete Successfully');
+                                    });
+                                }
+                            });
+                        }
+                        else{
+                            res.send('Nothing to delete');
+                        }
+                    }
+                });
+            }
+        }
+        else {
+            res.send('Please check url parameters');
+        }
+    }
+    else {
+        res.send('Please check url parameters');
+    }
+});
+
+// 清除 Tags, Tags_video
+router.get('/videoTagClean', function(req, res){
+    if(mysqlFlag)
+        initMysql();
+
+    if(mysqlConnection != null){
+        mysqlConnection.query('update tags set times=0', function (error, results, fields) {
+            if (error)
+                throw error;
+            else{
+                mysqlConnection.query('delete from tags_video', function (deleteError, deleteResults, fields) {
+                    if (deleteError) throw deleteError;
+                    res.send('Clean Successfully');
+                });
+            }
+        });
+    }
+});
+
+// 视频列表
+router.get('/getVideoList', function(req, res) {
     var files = [];
 
     if(redisFlag && redisClient){
@@ -99,7 +226,8 @@ router.get('/getList', function(req, res) {
     }
 });
 
-router.get('/getIndexFiles', function(req, res) {
+// 视频列表以及序号
+router.get('/getVideoIndexFiles', function(req, res) {
     var index = 0;
     var status = '';
     var files = [];
@@ -138,7 +266,8 @@ router.get('/getIndexFiles', function(req, res) {
     }
 });
 
-router.get('/getIndex', function(req, res) {
+// 获取视频序号
+router.get('/getVideoIndex', function(req, res) {
     var index = 0;
     var status = '';
 
@@ -164,7 +293,8 @@ router.get('/getIndex', function(req, res) {
     }
 });
 
-router.post('/setIndex', bodyParser.json(), function(req, res){
+// 设置视频序号
+router.post('/setVideoIndex', bodyParser.json(), function(req, res){
     if(redisFlag && redisClient) {
         console.log('setIndex', req.body);
         var body = req.body;
@@ -179,6 +309,59 @@ router.post('/setIndex', bodyParser.json(), function(req, res){
         }
     }
     res.send({ flag: 'Successfully' });
+});
+
+// 获取视频Tags
+router.get('/getVideoTags', function(req, res){
+    if(mysqlConnection != null){
+        mysqlConnection.query('select * from tags', function (error, results, fields) {
+            if (error) throw error;
+            res.send(JSON.stringify(results));
+        });
+    }
+});
+
+// 设置视频Tags
+router.post('/setVideoTags', bodyParser.json(), function(req, res){
+    if(mysqlConnection != null) {
+        var body = req.body;
+        console.log('setVideoTags', body);
+        var tagId = body.tagId;
+        var videoIndex = body.videoIndex;
+        var pathName = body.pathName;
+        var mtimeMs = body.mtimeMs;
+        var size = body.size;
+
+        mysqlConnection.query('select id from tags_video where tagId=? and mtimeMs=? and size=?', [tagId, mtimeMs, size], function (error, results, fields) {
+            if (error) throw error;
+            console.log('results', results);
+            if(results){
+                if(results.length == 0){
+                    // Insert
+                    mysqlConnection.query('insert into tags_video(tagId, videoIndex, pathName, mtimeMs, size, createDate) values (?,?,?,?,?,now())',
+                        [tagId, videoIndex, pathName, mtimeMs, size], function (insertError, insertResults, fields) {
+                            if (insertError)
+                                throw insertError;
+                            else
+                            {
+                                mysqlConnection.query('update tags set times=times+1 where id=?', tagId, function (updateError, updateResults, fields) {
+                                    if (updateError) throw updateError;
+                                });
+                            }
+                    });
+                }
+                else {
+                    // Update
+                    var id = results[0].id;
+                    mysqlConnection.query('update tags_video set videoIndex=?, pathName=? where id=?', [videoIndex, pathName, id], function (updateError, updateResults, fields) {
+                        if (updateError) throw updateError;
+                    });
+                }
+            }
+        });
+
+        res.send({ flag: true });
+    }
 });
 
 module.exports = router;

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Video Tag</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <% if (env === "production") { %>
+    <link rel="stylesheet" href="wildsPAGE/videoTag/index.css?v=<%= version %>" />
+    <% } %>
+</head>
+<body>
+<div class="livestream-video-tag">
+    <div class="head-area js_header">
+        <span class="js_title"></span>
+    </div>
+    <div class="result-area js_result"></div>
+    <div class="tag-area js_tag"></div>
+</div>
+<script src="wildsPAGE/videoTag/bundle.js?v=<%= version %>" type="text/javascript"></script>
+<% if (env !== "production" && reload === true) { %>
+<script src="reload/reload.js"></script>
+<% } %>
+</body>
+</html>

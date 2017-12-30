@@ -95,6 +95,7 @@ var getIndex = function(){
                             doRandom(function(){
                                 tmpVideoIndex = videoIndex;
                                 videoPlay();
+                                console.log('ended_random', videoIndex);
                                 setTimeout(getIndex, 3000);
                             });
                             break;
@@ -234,6 +235,7 @@ var setVideoIndex = function(){
 };
 
 var doPre = function(){
+    console.log('doPre', videoIndex);
     if(videoIndex >= 1) {
         videoIndex--;
     }
@@ -246,6 +248,7 @@ var doPre = function(){
 };
 
 var doNext = function(){
+    console.log('doNext', videoIndex);
     if(videoIndex <= videoFilesLen - 2) {
         videoIndex++;
     }
