@@ -206,6 +206,24 @@ router.get('/getVideoTags', function(req, res){
     });
 });
 
+// 获取视频TagsVideo
+router.get('/getVideoTagsVideo', function(req, res){
+    var query = url.parse(req.url, true).query;
+    if(query){
+        var mtimeMs = query.mtimeMs;
+        var size = query.size;
+
+        videoMysql.getVideoTagsVideo(mtimeMs, size, function(result){
+            if(result){
+                res.send(JSON.stringify(result));
+            }
+            else {
+                res.send('');
+            }
+        });
+    }
+});
+
 // 设置视频Tags
 router.post('/setVideoTags', bodyParser.json(), function(req, res){
     videoMysql.setVideoTags(req.body, function(result){

@@ -3,7 +3,7 @@ var mysqlFlag = true;
 var mysqlConnection = null;
 
 var initMysql = function(){
-    console.log('initMysql', mysqlFlag, !!mysqlConnection);
+    //console.log('initMysql', mysqlFlag, !!mysqlConnection);
     if(mysqlFlag && mysqlConnection == null){
         mysqlConnection = mysql.createConnection({
             host     : 'localhost',
@@ -87,7 +87,8 @@ var videoTagAddOne = function(index, nameArray, result, callback){
     }
 };
 
-// status: 0 => delete success, 1 => nothing to delete, 2 => name is '', -1 => delete tags_video error, -2 => delete tags error, -3 => select error
+// status: 0 => delete success, 1 => nothing to delete, 2 => name is '',
+// -1 => delete tags_video error, -2 => delete tags error, -3 => select error
 var videoTagDelOne = function(index, nameArray, result, callback){
     console.log('videoTagDelOne', index, nameArray);
     if(nameArray){
@@ -262,10 +263,11 @@ exports.setVideoTags = function(tagObj, callback){
         var pathName = tagObj.pathName;
         var mtimeMs = tagObj.mtimeMs;
         var size = tagObj.size;
+        var deleteFlag = tagObj.deleteFlag;
 
         mysqlConnection.query('select id from tags_video where tagId=? and mtimeMs=? and size=?',
             [tagId, mtimeMs, size], function (selectError, selectResults, fields) {
-            if (!selectError && selectResults) {
+                if (!selectError && selectResults) {
                     if(selectResults.length == 0){
                         // Insert
                         mysqlConnection.query('insert into tags_video(tagId, videoIndex, pathName, mtimeMs, size, createDate) values (?,?,?,?,?,now())',
@@ -286,26 +288,67 @@ exports.setVideoTags = function(tagObj, callback){
                             });
                     }
                     else {
-                        // Update
                         var id = selectResults[0].id;
-                        mysqlConnection.query('update tags_video set videoIndex=?, pathName=? where id=?',
-                            [videoIndex, pathName, id], function (updateError2, updateResults2, fields) {
-                            if (!updateError2) {
-                                return callback && callback(true);
-                            }
-                            else {
-                                return callback && callback(false);
-                            }
-                        });
+                        if(!deleteFlag) {
+                            // Update
+                            mysqlConnection.query('update tags_video set videoIndex=?, pathName=? where id=?',
+                                [videoIndex, pathName, id], function (updateError2, updateResults2, fields) {
+                                    if (!updateError2) {
+                                        return callback && callback(true);
+                                    }
+                                    else {
+                                        return callback && callback(false);
+                                    }
+                                });
+                        }
+                        else {
+                            // Delete
+                            mysqlConnection.query('delete from tags_video where id=?', id, function(deleteError, deleteResult, fields){
+                                if(!deleteError){
+                                    mysqlConnection.query('update tags set times=times-1 where id=?', tagId, function (updateError3, updateResults3, fields) {
+                                        if (!updateError3) {
+                                            return callback && callback(true);
+                                        }
+                                        else {
+                                            return callback && callback(false);
+                                        }
+                                    });
+                                }
+                                else {
+                                    return callback && callback(false);
+                                }
+                            });
+                        }
                     }
+                }
+                else {
+                    return callback && callback(false);
+                }
+            });
+
+    }
+    else {
+        return callback && callback(false);
+    }
+};
+
+exports.getVideoTagsVideo = function(mtimeMs, size, callback){
+    if(mysqlFlag)
+        initMysql();
+
+    if(mysqlConnection != null){
+        mysqlConnection.query('select tagId from tags_video where mtimeMs=? and size=?',
+            [mtimeMs, size], function (error, results, fields) {
+            if (!error) {
+                return callback && callback(results);
             }
             else {
-                return callback && callback(false);
+                return callback && callback(null);
             }
         });
     }
     else {
-        return callback && callback(false);
+        return callback && callback(null);
     }
 };
 

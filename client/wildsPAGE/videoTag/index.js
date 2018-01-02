@@ -38,6 +38,20 @@ var setVideo = function(index){
                 var title = index + '(' + (videoFilesLen - 1) + ').' + pathName;
                 document.title = title;
                 $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
+
+                $('.btn').removeClass('btn-click').addClass('btn-unclick');
+                videoService.getTagsVideo(fileObj.mtimeMs, fileObj.size, function(result){
+                    console.log('getTagsVideo', result);
+                    if(result){
+                        var resultLen = result.length;
+                        for(var i = 0; i < resultLen; i++){
+                            var tagObj = result[i];
+                            var tagId = tagObj.tagId;
+                            $('#tag_' + tagId).addClass('btn-click');
+                            $('#tag_' + tagId).data('delete', 1);
+                        }
+                    }
+                });
                 return;
             }
         }
@@ -87,55 +101,68 @@ videoService.getIndexFiles(function(result){
         if(videoIndex >= videoFilesLen)
             videoIndex = 0;
 
-        setVideo(videoIndex);
-        getIndex();
-    }
-});
-
-// 获取后端接口 getTags
-videoService.getTags(function(result){
-    console.log('getTags', result);
-    if(result){
-        var resultLen = result.length;
-        var content = [];
-
-        for(var i = 0; i < resultLen; i++){
-
-            if(i == 0) {
-                content.push('<div class="row">');
-            }
-            else if(i % 4 == 0){
-                content.push('</div><div class="row">');
-            }
-
-            var tag = result[i];
-            var tagId = tag.id;
-            var tagName = tag.name;
-            content.push('<div class="btn btn-unclick btn-tag" data-val="' + tagId + '">' + (tagName) + '</div>');
-        }
-
-        content.push('</div>');
-
-        $('.js_tag').html(content.join(''));
-        $('.row').css({ width: screenWidth });
-
-        $('.btn-tag').click(function(e){
-            changeClickEffect(e);
-            var tagId = $(e.currentTarget).data('val');
-            console.log('tagId', tagId);
-            setTags(tagId);
+        getTags(function(){
+            setVideo(videoIndex);
+            getIndex();
         });
     }
 });
 
+// 获取后端接口 getTags
+var getTags = function(callback){
+    videoService.getTags(function(result){
+        console.log('getTags', result);
+        if(result){
+            var resultLen = result.length;
+            var content = [];
+
+            for(var i = 0; i < resultLen; i++){
+                if(i == 0) {
+                    content.push('<div class="row">');
+                }
+                else if(i % 4 == 0){
+                    content.push('</div><div class="row">');
+                }
+
+                var tag = result[i];
+                var tagId = tag.id;
+                var tagName = tag.name;
+                content.push('<div id="tag_' + tagId + '" class="btn btn-unclick btn-tag" data-delete="0" data-val="' + tagId + '">' + (tagName) + '</div>');
+            }
+            content.push('</div>');
+
+            $('.js_tag').html(content.join(''));
+            $('.row').css({ width: screenWidth });
+
+            $('.btn-tag').click(function(e){
+                var tagId = $(e.currentTarget).data('val');
+                var deleteFlag = $(e.currentTarget).data('delete');
+
+                if(deleteFlag)
+                    $(e.currentTarget).data('delete', 0);
+                else
+                    $(e.currentTarget).data('delete', 1);
+
+                changeClickEffect(e, deleteFlag);
+                setTags(tagId, deleteFlag);
+            });
+        }
+        return callback && callback();
+    });
+};
+
 // 增加点击效果
-var changeClickEffect = function(e){
-    $('.btn').removeClass('btn-click').addClass('btn-unclick');
-    $(e.currentTarget).addClass('btn-click');
+var changeClickEffect = function(e, deleteFlag){
+    if(deleteFlag){
+        $(e.currentTarget).removeClass('btn-click').addClass('btn-unclick');
+    }
+    else {
+        $(e.currentTarget).removeClass('btn-unclick').addClass('btn-click');
+    }
 };
 
 // 设置Tag
-var setTags = function(tagId){
+var setTags = function(tagId, deleteFlag){
     var fileObj = videoFiles[videoIndex];
     var pathName = fileObj.pathName;
     var mtimeMs = fileObj.mtimeMs;
@@ -146,7 +173,8 @@ var setTags = function(tagId){
         videoIndex:  videoIndex,
         pathName: pathName,
         mtimeMs: mtimeMs,
-        size: size
+        size: size,
+        deleteFlag: deleteFlag
     };
     videoService.setTags(data, function(result){
         console.log('setTags_result', result);

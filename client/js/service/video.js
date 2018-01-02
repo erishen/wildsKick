@@ -24,4 +24,8 @@ video.getTags = function(sucCallback, errCallback) {
 video.setTags = function(data, sucCallback, errCallback){
     util.ajaxPost('/video/setVideoTags', data, sucCallback, errCallback);
 };
+video.getTagsVideo = function(mtimeMs, size, sucCallback, errCallback) {
+    util.getJSON('/video/getVideoTagsVideo?mtimeMs=' + mtimeMs + '&size=' + size, sucCallback, errCallback);
+};
+
 module.exports = video;
