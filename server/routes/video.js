@@ -10,6 +10,7 @@ var redis = require("redis");
 var bodyParser = require('body-parser');
 var url = require('url');
 var version = require('../config/version');
+var videoMysql = require('../service/videoMysql');
 
 var redisFlag = true;
 var mysqlFlag = true;
@@ -102,32 +103,19 @@ router.get('/videoTag', function(req, res){
 
 // 新增 Tag
 router.get('/videoTagAdd', function(req, res){
-    if(mysqlFlag)
-        initMysql();
-
     var query = url.parse(req.url, true).query;
     console.log(query);
+
     if(query){
         var name = query.name;
 
         if(name) {
-            if (mysqlConnection != null) {
-                mysqlConnection.query('select id from tags where name=?', name, function (error, results, fields) {
-                    if (error) throw error;
-                    if(results) {
-                        if (results.length == 0) {
-                            mysqlConnection.query('insert into tags(name,times,createDate)values(?,0,now())', name, function (insertError, insertResults, fields) {
-                                if (insertError) throw insertError;
-                                res.send('Add Successfully');
-                            });
-                        }
-                        else
-                        {
-                            res.send('Had been exist');
-                        }
-                    }
-                });
-            }
+            videoMysql.videoTagAdd(name, function(result){
+                if(result)
+                    res.send(result);
+                else
+                    res.send('Please check url parameters');
+            });
         } else {
             res.send('Please check url parameters');
         }
@@ -139,39 +127,19 @@ router.get('/videoTagAdd', function(req, res){
 
 // 删除 Tag
 router.get('/videoTagDel', function(req, res){
-    if(mysqlFlag)
-        initMysql();
-
     var query = url.parse(req.url, true).query;
     console.log(query);
+
     if(query){
         var name = query.name;
 
         if(name){
-            if(mysqlConnection != null){
-                mysqlConnection.query('select id from tags where name=?', name, function (error, results, fields) {
-                    if (error) throw error;
-                    console.log('results', results);
-                    if(results) {
-                        if (results.length > 0) {
-                            var id = results[0].id;
-                            mysqlConnection.query('delete from tags_video where tagId=?', id, function (deleteError, deleteResults, fields) {
-                                if (deleteError)
-                                    throw deleteError;
-                                else{
-                                    mysqlConnection.query('delete from tags where id=?', id, function (deleteError2, deleteResults2, fields) {
-                                        if (deleteError2) throw deleteError2;
-                                        res.send('Delete Successfully');
-                                    });
-                                }
-                            });
-                        }
-                        else{
-                            res.send('Nothing to delete');
-                        }
-                    }
-                });
-            }
+            videoMysql.videoTagDel(name, function(result){
+                if(result)
+                    res.send(result);
+                else
+                    res.send('Please check url parameters');
+            });
         }
         else {
             res.send('Please check url parameters');
