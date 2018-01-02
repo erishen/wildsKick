@@ -3,6 +3,7 @@ var mysqlFlag = true;
 var mysqlConnection = null;
 
 var initMysql = function(){
+    console.log('initMysql', mysqlFlag, !!mysqlConnection);
     if(mysqlFlag && mysqlConnection == null){
         mysqlConnection = mysql.createConnection({
             host     : 'localhost',
@@ -198,6 +199,113 @@ exports.videoTagDel = function(names, callback){
     }
     else {
         return callback && callback(null);
+    }
+};
+
+exports.videoTagClean = function(callback){
+    if(mysqlFlag)
+        initMysql();
+
+    if(mysqlConnection != null){
+        mysqlConnection.query('update tags set times=0', function (updateError, updateResults, fields) {
+            if (!updateError) {
+                mysqlConnection.query('delete from tags_video', function (deleteError, deleteResults, fields) {
+                    if (!deleteError) {
+                        // clean successfully
+                        return callback && callback({ status: 0 });
+                    }
+                    else {
+                        // delete tags_video error
+                        return callback && callback({ status: -2 });
+                    }
+                });
+            }
+            else {
+                // update tags error
+                return callback && callback({ status: -1 });
+            }
+        });
+    }
+    else {
+        // mysqlConnection is null
+        return callback && callback({ status: 1 });
+    }
+};
+
+exports.getVideoTags = function(callback){
+    if(mysqlFlag)
+        initMysql();
+
+    if(mysqlConnection != null){
+        mysqlConnection.query('select * from tags', function (error, results, fields) {
+            if (!error) {
+                return callback && callback(results);
+            }
+            else {
+                return callback && callback(null);
+            }
+        });
+    }
+    else {
+        return callback && callback(null);
+    }
+};
+
+exports.setVideoTags = function(tagObj, callback){
+    if(mysqlFlag)
+        initMysql();
+
+    if(mysqlConnection != null){
+        console.log('setVideoTags', tagObj);
+        var tagId = tagObj.tagId;
+        var videoIndex = tagObj.videoIndex;
+        var pathName = tagObj.pathName;
+        var mtimeMs = tagObj.mtimeMs;
+        var size = tagObj.size;
+
+        mysqlConnection.query('select id from tags_video where tagId=? and mtimeMs=? and size=?',
+            [tagId, mtimeMs, size], function (selectError, selectResults, fields) {
+            if (!selectError && selectResults) {
+                    if(selectResults.length == 0){
+                        // Insert
+                        mysqlConnection.query('insert into tags_video(tagId, videoIndex, pathName, mtimeMs, size, createDate) values (?,?,?,?,?,now())',
+                            [tagId, videoIndex, pathName, mtimeMs, size], function (insertError, insertResults, fields) {
+                                if (!insertError) {
+                                    mysqlConnection.query('update tags set times=times+1 where id=?', tagId, function (updateError, updateResults, fields) {
+                                        if (!updateError) {
+                                            return callback && callback(true);
+                                        }
+                                        else {
+                                            return callback && callback(false);
+                                        }
+                                    });
+                                }
+                                else {
+                                    return callback && callback(false);
+                                }
+                            });
+                    }
+                    else {
+                        // Update
+                        var id = selectResults[0].id;
+                        mysqlConnection.query('update tags_video set videoIndex=?, pathName=? where id=?',
+                            [videoIndex, pathName, id], function (updateError2, updateResults2, fields) {
+                            if (!updateError2) {
+                                return callback && callback(true);
+                            }
+                            else {
+                                return callback && callback(false);
+                            }
+                        });
+                    }
+            }
+            else {
+                return callback && callback(false);
+            }
+        });
+    }
+    else {
+        return callback && callback(false);
     }
 };
 

@@ -5,7 +5,6 @@ var express = require('express'),
     path = require('path'),
     fs = require('fs'),
     router = express.Router();
-var mysql = require('mysql');
 var redis = require("redis");
 var bodyParser = require('body-parser');
 var url = require('url');
@@ -13,7 +12,6 @@ var version = require('../config/version');
 var videoMysql = require('../service/videoMysql');
 
 var redisFlag = true;
-var mysqlFlag = true;
 var rootName = '/home/erishen/Videos';
 // 测试数据
 //rootName = 'D:/ERISHEN';
@@ -22,19 +20,6 @@ var videoFilesKey = 'video_files';
 var videoIndexKey = 'video_index';
 var expireSeconds = 3600;
 var redisClient = null;
-var mysqlConnection = null;
-
-var initMysql = function(){
-    if(mysqlFlag && mysqlConnection == null){
-        mysqlConnection = mysql.createConnection({
-            host     : 'localhost',
-            user     : 'root',
-            password : 'password',
-            database : 'video'
-        });
-        mysqlConnection.connect();
-    }
-};
 
 var getIPAdress = function(){
     var interfaces = require('os').networkInterfaces();
@@ -96,77 +81,7 @@ router.get('/videoControl', function(req, res) {
 
 // 视频Tag页面
 router.get('/videoTag', function(req, res){
-    if(mysqlFlag)
-        initMysql();
     res.render('video/tag', { version: version });
-});
-
-// 新增 Tag
-router.get('/videoTagAdd', function(req, res){
-    var query = url.parse(req.url, true).query;
-    console.log(query);
-
-    if(query){
-        var name = query.name;
-
-        if(name) {
-            videoMysql.videoTagAdd(name, function(result){
-                if(result)
-                    res.send(result);
-                else
-                    res.send('Please check url parameters');
-            });
-        } else {
-            res.send('Please check url parameters');
-        }
-    }
-    else {
-        res.send('Please check url parameters');
-    }
-});
-
-// 删除 Tag
-router.get('/videoTagDel', function(req, res){
-    var query = url.parse(req.url, true).query;
-    console.log(query);
-
-    if(query){
-        var name = query.name;
-
-        if(name){
-            videoMysql.videoTagDel(name, function(result){
-                if(result)
-                    res.send(result);
-                else
-                    res.send('Please check url parameters');
-            });
-        }
-        else {
-            res.send('Please check url parameters');
-        }
-    }
-    else {
-        res.send('Please check url parameters');
-    }
-});
-
-// 清除 Tags, Tags_video
-router.get('/videoTagClean', function(req, res){
-    if(mysqlFlag)
-        initMysql();
-
-    if(mysqlConnection != null){
-        mysqlConnection.query('update tags set times=0', function (error, results, fields) {
-            if (error)
-                throw error;
-            else{
-                mysqlConnection.query('delete from tags_video', function (deleteError, deleteResults, fields) {
-                    if (deleteError) throw deleteError;
-                    res.send('Clean Successfully');
-                });
-            }
-        });
-    }
 });
 
 // 视频列表
@@ -281,55 +196,80 @@ router.post('/setVideoIndex', bodyParser.json(), function(req, res){
 
 // 获取视频Tags
 router.get('/getVideoTags', function(req, res){
-    if(mysqlConnection != null){
-        mysqlConnection.query('select * from tags', function (error, results, fields) {
-            if (error) throw error;
-            res.send(JSON.stringify(results));
-        });
-    }
+    videoMysql.getVideoTags(function(result){
+        if(result){
+            res.send(JSON.stringify(result));
+        }
+        else {
+            res.send('');
+        }
+    });
 });
 
 // 设置视频Tags
 router.post('/setVideoTags', bodyParser.json(), function(req, res){
-    if(mysqlConnection != null) {
-        var body = req.body;
-        console.log('setVideoTags', body);
-        var tagId = body.tagId;
-        var videoIndex = body.videoIndex;
-        var pathName = body.pathName;
-        var mtimeMs = body.mtimeMs;
-        var size = body.size;
+    videoMysql.setVideoTags(req.body, function(result){
+        res.send({ flag: result });
+    });
+});
 
-        mysqlConnection.query('select id from tags_video where tagId=? and mtimeMs=? and size=?', [tagId, mtimeMs, size], function (error, results, fields) {
-            if (error) throw error;
-            console.log('results', results);
-            if(results){
-                if(results.length == 0){
-                    // Insert
-                    mysqlConnection.query('insert into tags_video(tagId, videoIndex, pathName, mtimeMs, size, createDate) values (?,?,?,?,?,now())',
-                        [tagId, videoIndex, pathName, mtimeMs, size], function (insertError, insertResults, fields) {
-                            if (insertError)
-                                throw insertError;
-                            else
-                            {
-                                mysqlConnection.query('update tags set times=times+1 where id=?', tagId, function (updateError, updateResults, fields) {
-                                    if (updateError) throw updateError;
-                                });
-                            }
-                    });
-                }
-                else {
-                    // Update
-                    var id = results[0].id;
-                    mysqlConnection.query('update tags_video set videoIndex=?, pathName=? where id=?', [videoIndex, pathName, id], function (updateError, updateResults, fields) {
-                        if (updateError) throw updateError;
-                    });
-                }
-            }
-        });
+// 新增 Tag
+router.get('/videoTagAdd', function(req, res){
+    var query = url.parse(req.url, true).query;
+    console.log(query);
 
-        res.send({ flag: true });
+    if(query){
+        var name = query.name;
+
+        if(name) {
+            videoMysql.videoTagAdd(name, function(result){
+                if(result)
+                    res.send(result);
+                else
+                    res.send('Please check url parameters');
+            });
+        } else {
+            res.send('Please check url parameters');
+        }
     }
+    else {
+        res.send('Please check url parameters');
+    }
+});
+
+// 删除 Tag
+router.get('/videoTagDel', function(req, res){
+    var query = url.parse(req.url, true).query;
+    console.log(query);
+
+    if(query){
+        var name = query.name;
+
+        if(name){
+            videoMysql.videoTagDel(name, function(result){
+                if(result)
+                    res.send(result);
+                else
+                    res.send('Please check url parameters');
+            });
+        }
+        else {
+            res.send('Please check url parameters');
+        }
+    }
+    else {
+        res.send('Please check url parameters');
+    }
+});
+
+// 清除 Tags, Tags_video
+router.get('/videoTagClean', function(req, res){
+    videoMysql.videoTagClean(function(result){
+        if(result)
+            res.send(result);
+        else
+            res.send('Please check url parameters');
+    });
 });
 
 module.exports = router;
