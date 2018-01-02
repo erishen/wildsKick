@@ -5,6 +5,7 @@ var $ = require('../lib/jquery-3.2.1.min');
 var _ = require('../lib/lodash.min');
 var config = require('../helper/config');
 
+var randomArray = [];
 var numWordArray = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
     'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
@@ -94,11 +95,26 @@ util.getRandomNum = function(min, max){
 };
 util.getVideoRandomNum = function(index, length, callback){
     var self = this;
+    var randomArrayLen = randomArray.length;
     var randomIndex = self.getRandomNum(0, length - 1);
 
     if(index == randomIndex)
-        self.getVideoRandomNum(index, length, callback);
+        return self.getVideoRandomNum(index, length, callback);
     else{
+        if(randomArrayLen < length){
+            for(var i = 0; i < randomArrayLen; i++){
+                var storeRandomIndex = randomArray[i];
+                if(storeRandomIndex == randomIndex){
+                    return self.getVideoRandomNum(index, length, callback);
+                }
+            }
+        }
+        else {
+            randomArray.length = 0;
+        }
+
+        randomArray.push(randomIndex);
+        console.log('randomArray', JSON.stringify(randomArray));
         return callback && callback(randomIndex);
     }
 };
