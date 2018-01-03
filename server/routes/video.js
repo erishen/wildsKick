@@ -303,7 +303,7 @@ router.get('/searchTagsVideo', function(req, res){
                 if(result)
                     res.send(result);
                 else
-                    res.send('Please check url parameters');
+                    res.send([]);
             });
         } else {
             res.send('Please check url parameters');

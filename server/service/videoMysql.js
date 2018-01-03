@@ -356,6 +356,34 @@ exports.getVideoTagsVideo = function(mtimeMs, size, callback){
     }
 };
 
+var getDistinctTagsVideo = function(tagsStr, callback){
+    if(tagsStr != ''){
+        var sql = 'select distinct(tv.videoIndex) as videoIndex from tags as t '
+            + ' left join tags_video as tv on tv.tagId = t.id '
+            + ' where t.name in ' + tagsStr + ' and tv.videoIndex is not null order by videoIndex';
+        console.log('getDistinctTagsVideo', sql);
+
+        mysqlConnection.query(sql, function (error, results, fields) {
+            if (!error) {
+                var array = [];
+                var resultsLen = results.length;
+
+                for(var i = 0; i < resultsLen; i++){
+                    var resultObj = results[i];
+                    array.push(resultObj.videoIndex);
+                }
+                return callback && callback(array);
+            }
+            else {
+                return callback && callback(null);
+            }
+        });
+    }
+    else {
+        return callback && callback(null);
+    }
+};
+
 exports.searchTagsVideo = function(tags, callback){
     if(mysqlFlag)
         initMysql();
@@ -385,46 +413,42 @@ exports.searchTagsVideo = function(tags, callback){
             notTagsStr = '(' + notTagsStr.substring(0, notTagsStr.length - 1) + ')';
         }
 
-        console.log('tagsStr', tagsStr, notTagsStr);
+        console.log('tagsStr: ', tagsStr, ', notTagsStr: ', notTagsStr);
         if(tagsArrLen > 0){
-            mysqlConnection.query('select distinct(tv.videoIndex) as videoIndex from tags as t '
-                + ' left join tags_video as tv on tv.tagId = t.id '
-                + ' where t.name not in ' + notTagsStr + ' order by videoIndex', function (notError, notResults, fields) {
+            getDistinctTagsVideo(notTagsStr, function(notArray){
+                console.log('notArray', notArray);
+                getDistinctTagsVideo(tagsStr, function(yesArray){
+                    console.log('yesArray', yesArray);
+                    var newArray = [];
+                    if(yesArray){
+                        var yesArrayLen = yesArray.length;
+                        for(var i = 0; i < yesArrayLen; i++){
+                            var yesIndex = yesArray[i];
+                            var flag = true;
 
-                if (!notError) {
-                    var notArray = [];
-                    var notResultsLen = notResults.length;
+                            if(notArray){
+                                var notArrayLen = notArray.length;
+                                for(var j = 0; j < notArrayLen; j++){
+                                    var noIndex = notArray[j];
 
-                    for(var i = 0; i < notResultsLen; i++){
-                        var notResultObj = notResults[i];
-                        notArray.push(notResultObj.videoIndex);
+                                    if(yesIndex == noIndex){
+                                        flag = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if(flag)
+                                newArray.push(yesIndex);
+                        }
                     }
 
-                    return callback && callback(array);
-                }
-                else {
-                    return callback && callback(null);
-                }
-            });
-
-            mysqlConnection.query('select distinct(tv.videoIndex) as videoIndex from tags as t '
-                + ' left join tags_video as tv on tv.tagId = t.id '
-                + ' where t.name in ' + tagsStr + ' order by videoIndex', function (error, results, fields) {
-
-                if (!error) {
-                    console.log('results', results);
-                    var array = [];
-                    var resultsLen = results.length;
-
-                    for(var i = 0; i < resultsLen; i++){
-                        var resultObj = results[i];
-                        array.push(resultObj.videoIndex);
-                    }
-                    return callback && callback(array);
-                }
-                else {
-                    return callback && callback(null);
-                }
+                    console.log('newArray', newArray);
+                    if(newArray.length > 0)
+                        return callback && callback(newArray);
+                    else
+                        return callback && callback(null);
+                });
             });
         }
         else {

@@ -98,7 +98,7 @@ util.handleRandomArray = function(index, length, indexArray, callback){
     var randomArrayLen = randomArray.length;
     var randomIndex = 0;
 
-    if(indexArray){
+    if(indexArray && indexArray.length > 0){
         var indexArrayLen = indexArray.length;
         var indexArrayRandom = self.getRandomNum(0, indexArrayLen - 1);
         randomIndex = indexArray[indexArrayRandom];
