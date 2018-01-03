@@ -419,14 +419,15 @@ exports.searchTagsVideo = function(tags, callback){
                 console.log('notArray', notArray);
                 getDistinctTagsVideo(tagsStr, function(yesArray){
                     console.log('yesArray', yesArray);
-                    var newArray = [];
-                    if(yesArray){
+
+                    if(yesArray && yesArray.length > 0){
+                        var newArray = [];
                         var yesArrayLen = yesArray.length;
                         for(var i = 0; i < yesArrayLen; i++){
                             var yesIndex = yesArray[i];
                             var flag = true;
 
-                            if(notArray){
+                            if(notArray && notArray.length > 0){
                                 var notArrayLen = notArray.length;
                                 for(var j = 0; j < notArrayLen; j++){
                                     var noIndex = notArray[j];
@@ -441,13 +442,16 @@ exports.searchTagsVideo = function(tags, callback){
                             if(flag)
                                 newArray.push(yesIndex);
                         }
-                    }
 
-                    console.log('newArray', newArray);
-                    if(newArray.length > 0)
-                        return callback && callback(newArray);
-                    else
-                        return callback && callback(null);
+                        console.log('newArray', newArray);
+                        if(newArray.length > 0)
+                            return callback && callback({ newArray: newArray });
+                        else
+                            return callback && callback(null);
+                    }
+                    else {
+                        return callback && callback({ notArray: notArray });
+                    }
                 });
             });
         }
