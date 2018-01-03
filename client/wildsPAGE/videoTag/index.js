@@ -39,9 +39,9 @@ var setVideo = function(index){
                 document.title = title;
                 $('.js_title').html(title + '<br/>' + mtimeMs + ' ' + size);
 
-                $('.btn').removeClass('btn-click').addClass('btn-unclick');
                 videoService.getTagsVideo(fileObj.mtimeMs, fileObj.size, function(result){
                     console.log('getTagsVideo', result);
+                    $('.btn').removeClass('btn-click').addClass('btn-unclick');
                     if(result){
                         var resultLen = result.length;
                         for(var i = 0; i < resultLen; i++){
@@ -87,7 +87,7 @@ var getIndex = function(){
             }
         }
 
-        getIndexTimeout = setTimeout(getIndex, 1000);
+        getIndexTimeout = setTimeout(getIndex, 3000);
     });
 };
 

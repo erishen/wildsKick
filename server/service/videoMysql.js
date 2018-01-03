@@ -3,7 +3,6 @@ var mysqlFlag = true;
 var mysqlConnection = null;
 
 var initMysql = function(){
-    //console.log('initMysql', mysqlFlag, !!mysqlConnection);
     if(mysqlFlag && mysqlConnection == null){
         mysqlConnection = mysql.createConnection({
             host     : 'localhost',
@@ -19,7 +18,10 @@ var trim = function (str) {
     return str.replace(/^\s*|\s*$/g, '');
 };
 
-// status: 0 => insert success, 1 => name exist, 2 => name is '', -1 => insert error, -2 => select error
+/*
+    status: 0 => insert success, 1 => name exist, 2 => name is '',
+            -1 => insert error, -2 => select error
+ */
 var videoTagAddOne = function(index, nameArray, result, callback){
     console.log('videoTagAddOne', index, nameArray);
     if(nameArray){
@@ -87,8 +89,10 @@ var videoTagAddOne = function(index, nameArray, result, callback){
     }
 };
 
-// status: 0 => delete success, 1 => nothing to delete, 2 => name is '',
-// -1 => delete tags_video error, -2 => delete tags error, -3 => select error
+/*
+  status: 0 => delete success, 1 => nothing to delete, 2 => name is '',
+         -1 => delete tags_video error, -2 => delete tags error, -3 => select error
+ */
 var videoTagDelOne = function(index, nameArray, result, callback){
     console.log('videoTagDelOne', index, nameArray);
     if(nameArray){
@@ -176,7 +180,7 @@ exports.videoTagAdd = function(names, callback){
         initMysql();
 
     var result = [];
-    if(trim(names) != ''){
+    if(trim(names) != '' && mysqlConnection != null){
         var namesArr = names.split(',');
         videoTagAddOne(0, namesArr, result, function(newResult){
             return callback && callback(newResult);
@@ -192,7 +196,7 @@ exports.videoTagDel = function(names, callback){
         initMysql();
 
     var result = [];
-    if(trim(names) != ''){
+    if(trim(names) != '' && mysqlConnection != null){
         var namesArr = names.split(',');
         videoTagDelOne(0, namesArr, result, function(newResult){
             return callback && callback(newResult);
@@ -348,6 +352,85 @@ exports.getVideoTagsVideo = function(mtimeMs, size, callback){
         });
     }
     else {
+        return callback && callback(null);
+    }
+};
+
+exports.searchTagsVideo = function(tags, callback){
+    if(mysqlFlag)
+        initMysql();
+
+    if(trim(tags) != '' && mysqlConnection != null){
+        var tagsArr = tags.split(',');
+        var tagsArrLen = tagsArr.length;
+        var tagsStr = '';
+        var notTagsStr = '';
+
+        for(var i = 0; i < tagsArrLen; i++){
+            var tag = tagsArr[i];
+
+            if(tag.indexOf('!') != 0){
+                tagsStr += "'" + tag + "',";
+            }
+            else {
+                notTagsStr += "'" + tag.substring(1) + "',";
+            }
+        }
+
+        if(tagsStr != ''){
+            tagsStr = '(' + tagsStr.substring(0, tagsStr.length - 1) + ')';
+        }
+
+        if(notTagsStr != ''){
+            notTagsStr = '(' + notTagsStr.substring(0, notTagsStr.length - 1) + ')';
+        }
+
+        console.log('tagsStr', tagsStr, notTagsStr);
+        if(tagsArrLen > 0){
+            mysqlConnection.query('select distinct(tv.videoIndex) as videoIndex from tags as t '
+                + ' left join tags_video as tv on tv.tagId = t.id '
+                + ' where t.name not in ' + notTagsStr + ' order by videoIndex', function (notError, notResults, fields) {
+
+                if (!notError) {
+                    var notArray = [];
+                    var notResultsLen = notResults.length;
+
+                    for(var i = 0; i < notResultsLen; i++){
+                        var notResultObj = notResults[i];
+                        notArray.push(notResultObj.videoIndex);
+                    }
+
+                    return callback && callback(array);
+                }
+                else {
+                    return callback && callback(null);
+                }
+            });
+
+            mysqlConnection.query('select distinct(tv.videoIndex) as videoIndex from tags as t '
+                + ' left join tags_video as tv on tv.tagId = t.id '
+                + ' where t.name in ' + tagsStr + ' order by videoIndex', function (error, results, fields) {
+
+                if (!error) {
+                    console.log('results', results);
+                    var array = [];
+                    var resultsLen = results.length;
+
+                    for(var i = 0; i < resultsLen; i++){
+                        var resultObj = results[i];
+                        array.push(resultObj.videoIndex);
+                    }
+                    return callback && callback(array);
+                }
+                else {
+                    return callback && callback(null);
+                }
+            });
+        }
+        else {
+            return callback && callback(null);
+        }
+    } else {
         return callback && callback(null);
     }
 };

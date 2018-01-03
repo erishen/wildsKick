@@ -13,6 +13,15 @@ var videoStatus = '';
 var getIndexTimeout = null;
 var tmpVideoIndex = 0;
 var newVideoIndex = 0;
+var videoTags = '';
+
+// URL 参数设置: T = Tag
+var urlObj = util.getUrlObj(window.location.search);
+
+if(urlObj){
+    if(urlObj.T != undefined)
+        videoTags = urlObj.T;
+}
 
 // 视频信息相关内容显示
 var setVideo = function(index){
@@ -144,6 +153,15 @@ var changeClickEffect = function(e){
     $(e.currentTarget).addClass('btn-click');
 };
 
+// 调用后端接口 searchTagsVideo
+var searchTagsVideo = function(callback){
+    videoTags = util.trim(videoTags);
+    if(videoTags != ''){
+        return videoService.searchTagsVideo(videoTags, callback);
+    }
+    return callback && callback(null);
+};
+
 // DOM 事件绑定
 $('.js_btn_pre').click(function(e){
     changeClickEffect(e);
@@ -173,11 +191,15 @@ $('.js_btn_next').click(function(e){
 
 $('.js_btn_random').click(function(e){
     changeClickEffect(e);
-    util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
-        videoIndex = randomIndex;
-        videoStatus = 'random';
-        setVideo(videoIndex);
-        setVideoIndex();
+
+    searchTagsVideo(function(indexArray){
+        console.log('videoTags_indexArray', indexArray);
+        util.getVideoRandomNum(videoIndex, videoFilesLen, function(randomIndex){
+            videoIndex = randomIndex;
+            videoStatus = 'random';
+            setVideo(videoIndex);
+            setVideoIndex();
+        }, indexArray);
     });
 });
 

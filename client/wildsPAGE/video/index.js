@@ -14,11 +14,7 @@ var inkeUI = require('../../js/ui/inke');
 var videoId = 'my_video_1';
 var playerUrl = 'http://vjs.zencdn.net/v/oceans.mp4';
 var coverImageUrl = 'http://vjs.zencdn.net/v/oceans.png';
-
 var urlPrefix = 'http://' + window.ip + ':9999';
-
-// URL 参数设置: R = Random
-var urlObj = util.getUrlObj(window.location.search);
 
 var isRandom = false;
 var videoFiles = [];
@@ -33,6 +29,9 @@ var player = null;
 var playerStatus = '';
 var getIndexTimeout = null;
 
+// URL 参数设置: R = Random, I = Index
+var urlObj = util.getUrlObj(window.location.search);
+
 if(urlObj){
     if(urlObj.R != undefined)
         isRandom = true;
@@ -41,6 +40,7 @@ if(urlObj){
         directVideoIndex = parseInt(urlObj.I, 10);
 }
 
+// 视频播放
 var videoPlay = function(){
     if(player){
         videoUI.play(player);
@@ -48,6 +48,7 @@ var videoPlay = function(){
     }
 };
 
+// 视频暂停
 var videoPause = function(){
     if(player){
         videoUI.pause(player);
@@ -55,6 +56,7 @@ var videoPause = function(){
     }
 };
 
+// 停止延时获取
 var stopGetIndex = function(){
     if(getIndexTimeout != null)
     {
@@ -128,6 +130,7 @@ var getIndex = function(){
     });
 };
 
+// 视频信息相关内容显示
 var setVideo = function(index){
     console.log('setVideo_index', index);
 
@@ -176,6 +179,7 @@ var setVideo = function(index){
     }
 };
 
+// 获取后端接口 getIndexFiles
 videoService.getIndexFiles(function(result){
     if(result){
         videoIndex = parseInt(result.index, 10);
@@ -225,15 +229,18 @@ var logUserAction = function(){
     }
 };
 
+// 获取 URL Href
 var getNewHref = function(params){
     return window.location.origin + window.location.pathname + params;
 };
 
+// 保存当前视频序号到 Redis
 var setVideoIndex = function(){
     if(!isRandom && !directVideoIndex)
         videoService.setIndex({ index: videoIndex, status: videoStatus });
 };
 
+// DOM 事件绑定
 var doPre = function(){
     console.log('doPre', videoIndex);
     if(videoIndex >= 1) {
@@ -281,12 +288,10 @@ $('.js_direct').click(doDirect);
 $('.js_random').click(function(){
     doRandom();
 });
-
 $('.js_player_cover').on('click', function () {
     if(!isRandom && !directVideoIndex)
         stopGetIndex();
 });
-
 $('.js_player').on('click', function () {
     if(!isRandom && !directVideoIndex)
         getIndex();

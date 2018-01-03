@@ -290,4 +290,28 @@ router.get('/videoTagClean', function(req, res){
     });
 });
 
+// 根据 tag 搜索相应的 videoIndex
+router.get('/searchTagsVideo', function(req, res){
+    var query = url.parse(req.url, true).query;
+    console.log(query);
+
+    if(query){
+        var tags = query.tags;
+
+        if(tags) {
+            videoMysql.searchTagsVideo(tags, function(result){
+                if(result)
+                    res.send(result);
+                else
+                    res.send('Please check url parameters');
+            });
+        } else {
+            res.send('Please check url parameters');
+        }
+    }
+    else {
+        res.send('Please check url parameters');
+    }
+});
+
 module.exports = router;

@@ -93,29 +93,53 @@ util.getUrlObj = function(url){
 util.getRandomNum = function(min, max){
     return Math.floor(Math.random()*(max-min+1)+min);
 };
-util.getVideoRandomNum = function(index, length, callback){
+util.handleRandomArray = function(index, length, indexArray, callback){
+    var self = this;
+    var randomArrayLen = randomArray.length;
+    var randomIndex = 0;
+
+    if(indexArray){
+        var indexArrayLen = indexArray.length;
+        var indexArrayRandom = self.getRandomNum(0, indexArrayLen - 1);
+        randomIndex = indexArray[indexArrayRandom];
+        length = indexArrayLen;
+    }
+    else {
+        randomIndex = self.getRandomNum(0, length - 1);
+    }
+
+    if(randomArrayLen < length){
+        for(var i = 0; i < randomArrayLen; i++){
+            var storeRandomIndex = randomArray[i];
+            if(storeRandomIndex == randomIndex){
+                return callback && callback(false);
+            }
+        }
+    }
+    else {
+        randomArray.length = 0;
+    }
+    return callback && callback(true, randomIndex);
+};
+util.getVideoRandomNum = function(index, length, callback, indexArray){
     var self = this;
     var randomArrayLen = randomArray.length;
     var randomIndex = self.getRandomNum(0, length - 1);
 
     if(index == randomIndex)
-        return self.getVideoRandomNum(index, length, callback);
+        return self.getVideoRandomNum(index, length, callback, indexArray);
     else{
-        if(randomArrayLen < length){
-            for(var i = 0; i < randomArrayLen; i++){
-                var storeRandomIndex = randomArray[i];
-                if(storeRandomIndex == randomIndex){
-                    return self.getVideoRandomNum(index, length, callback);
-                }
-            }
-        }
-        else {
-            randomArray.length = 0;
-        }
+        self.handleRandomArray(index, length, indexArray, function(flag, randomIndex){
 
-        randomArray.push(randomIndex);
-        console.log('randomArray', JSON.stringify(randomArray));
-        return callback && callback(randomIndex);
+            if(!flag){
+                return self.getVideoRandomNum(index, length, callback, indexArray);
+            }
+            else {
+                randomArray.push(randomIndex);
+                console.log('randomArray', JSON.stringify(randomArray));
+                return callback && callback(randomIndex);
+            }
+        });
     }
 };
 util.getJSON = function(url, sucCallback, errCallback, alwaysCallback){
@@ -195,5 +219,9 @@ util.appendScript = function(url){
     newScript.type = 'text/javascript';
     newScript.src = url;
     $('body').append(newScript);
+};
+util.trim = function (str) {
+    console.log('trim', str);
+    return str.replace(/^\s*|\s*$/g, '');
 };
 module.exports = util;
