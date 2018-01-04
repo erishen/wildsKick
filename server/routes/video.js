@@ -5,33 +5,59 @@ var express = require('express'),
     path = require('path'),
     fs = require('fs'),
     router = express.Router();
+var moment = require('moment');
+var multer = require('multer');
 var redis = require("redis");
 var bodyParser = require('body-parser');
 var url = require('url');
 var version = require('../config/version');
+var videoConfig = require('../config/video');
 var videoMysql = require('../service/videoMysql');
+var systemService = require('../service/system');
 
+var rootName = videoConfig.dictionary;
+var uploadDictionary = rootName + '/uploads/';
+var uploadMulter = multer({ dest: uploadDictionary });
 var redisFlag = true;
-var rootName = '/home/erishen/Videos';
+var newUploadDictionary = '';
+
 // 测试数据
 //rootName = 'D:/ERISHEN';
 
-var videoFilesKey = 'video_files';
-var videoIndexKey = 'video_index';
-var expireSeconds = 3600;
+var videoFilesKey = videoConfig.redisVideoFilesKey;
+var videoIndexKey = videoConfig.redisVideoIndexKey;
+var expireSeconds = videoConfig.redisExpireSeconds;
 var redisClient = null;
 
-var getIPAdress = function(){
-    var interfaces = require('os').networkInterfaces();
-    for(var devName in interfaces){
-        var iface = interfaces[devName];
-        for(var i=0;i<iface.length;i++){
-            var alias = iface[i];
-            if(alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal){
-                return alias.address;
+var getOneFile = function(pathName, fileStat, filesArray){
+
+    if(filesArray == undefined)
+        filesArray = [];
+
+    if(pathName != '' && fileStat){
+        pathName = pathName.replace(rootName, '');
+
+        var pathObj = pathName.split('.');
+        var pathObjLen = pathObj.length;
+
+        if(pathObjLen > 1)
+        {
+            var pathSuffix = pathObj[1].toLowerCase();
+            var fileSuffixs = videoConfig.fileSuffixs;
+            var fileSuffixsLen = fileSuffixs.length;
+            for(var i = 0; i < fileSuffixsLen; i++){
+                if(pathSuffix == fileSuffixs[i]){
+                    filesArray.push({
+                        pathName: pathName,
+                        mtimeMs: fileStat.mtimeMs,
+                        size: fileStat.size
+                    });
+                }
             }
         }
     }
+
+    return filesArray;
 };
 
 var getAllFiles = function(dictionaryName, filesArray){
@@ -43,22 +69,7 @@ var getAllFiles = function(dictionaryName, filesArray){
         var fileStat = fs.lstatSync(pathName);
 
         if(!fileStat.isDirectory()) {
-            //console.log('fileStat', pathName, fileStat);
-            pathName = pathName.replace(rootName, '');
-
-            var pathObj = pathName.split('.');
-            var pathObjLen = pathObj.length;
-            if(pathObjLen > 1)
-            {
-                var pathSuffix = pathObj[1].toLowerCase();
-                if(pathSuffix == 'mp4' || pathSuffix == 'mov'){
-                    filesArray.push({
-                        pathName: pathName,
-                        mtimeMs: fileStat.mtimeMs,
-                        size: fileStat.size
-                    });
-                }
-            }
+            getOneFile(pathName, fileStat, filesArray);
         }
         else {
             getAllFiles(pathName, filesArray);
@@ -66,13 +77,14 @@ var getAllFiles = function(dictionaryName, filesArray){
     });
 };
 
+// 视频页面
 router.get('/', function(req, res) {
     if(redisFlag)
         redisClient = redis.createClient();
-    res.render('video', { version: version, ip: getIPAdress() });
+    res.render('video', { version: version, ip: systemService.getIPAdress() });
 });
 
-// 视频控制器
+// 视频控制器页面
 router.get('/videoControl', function(req, res) {
     if(redisFlag)
         redisClient = redis.createClient();
@@ -82,6 +94,103 @@ router.get('/videoControl', function(req, res) {
 // 视频Tag页面
 router.get('/videoTag', function(req, res){
     res.render('video/tag', { version: version });
+});
+
+// 视频上传页面
+router.get('/videoUpload', function(req, res){
+    res.render('video/upload', { version: version });
+});
+
+var createDictionary = function(index, array, callback){
+
+    if(index == 0)
+        newUploadDictionary = uploadDictionary;
+
+    var arrayLen = array.length;
+    if(array && arrayLen > 0){
+        if(index >= 0 && index < arrayLen){
+            newUploadDictionary += array[index] + '/';
+            fs.mkdir(newUploadDictionary, function(err) {
+                if(!err){
+                    index++;
+                    return createDictionary(index, array, callback);
+                }
+                else {
+                    console.log('mkdir_err', err);
+                    return callback && callback();
+                }
+            });
+        }
+        else {
+            return callback && callback();
+        }
+    }
+    else {
+        return callback && callback();
+    }
+};
+
+// 视频上传
+router.post('/videoUploadTo', uploadMulter.single('upload-file'), function(req, res){
+    // 没有附带文件
+    if (!req.file) {
+        res.json({ flag: false });
+        return;
+    }
+    // 输出文件信息
+    console.log('====================================================');
+    console.log('fieldname: ' + req.file.fieldname);
+    console.log('originalname: ' + req.file.originalname);
+    console.log('encoding: ' + req.file.encoding);
+    console.log('mimetype: ' + req.file.mimetype);
+    console.log('size: ' + (req.file.size / 1024).toFixed(2) + 'KB');
+    console.log('destination: ' + req.file.destination);
+    console.log('filename: ' + req.file.filename);
+    console.log('path: ' + req.file.path);
+
+    // 根据上传日期创建文件夹
+    var mimeType = req.file.mimetype;
+    mimeType = mimeType.split('/').join('_');
+    var today = moment().format('YYYY-MM-DD');
+
+    var dicArray = [mimeType, today];
+    var dicArrayLen = dicArray.length;
+    var newDictionary = uploadDictionary;
+    for(var i = 0; i < dicArrayLen; i++){
+        newDictionary += dicArray[i] + '/';
+    }
+
+    createDictionary(0, dicArray, function(){
+        // 重命名文件
+        var oldPath = req.file.path;
+        var newPath = newDictionary + req.file.originalname;
+
+        fs.rename(oldPath, newPath, function(err){
+            if (err) {
+                res.json({ flag: false });
+                console.log('rename_err', err);
+            } else {
+                res.json({ flag: true });
+
+                if(redisFlag){
+                    redisClient = redis.createClient();
+                    var newFilesArray = [];
+
+                    redisClient.get(videoFilesKey, function (err, replies) {
+                        console.log('replies: ' + replies);
+                        if(replies != undefined && replies != '[]'){
+                            newFilesArray = JSON.parse(replies, true);
+                        }
+
+                        var newFileStat = fs.lstatSync(newPath);
+                        getOneFile(newPath, newFileStat, newFilesArray);
+                        console.log('newFilesArray', newFilesArray);
+                        redisClient.set(videoFilesKey, JSON.stringify(newFilesArray), 'EX', expireSeconds);
+                    });
+                }
+            }
+        });
+    });
 });
 
 // 视频列表

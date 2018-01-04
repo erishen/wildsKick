@@ -24,7 +24,7 @@ video.init = function(id, coverImageUrl, playerUrl){
 
     self.setCoverImageUrl(coverImageUrl);
 
-    $('.livestream-video').show();
+    $('.wildskick-video').show();
     return player;
 };
 video.setCoverImageUrl = function(coverImageUrl){

@@ -45,6 +45,28 @@ util.ajaxPost = function(url, data, sucCallback, errCallback, beforeCallback){
         }
     });
 };
+util.ajaxPostFile = function(url, formData, sucCallback, proCallback, errCallback){
+    $.ajax({
+        url: url,
+        type: 'POST',
+        cache: false,
+        processData: false,
+        contentType: false,
+        data: formData,
+        xhr: function () {
+            var xhr = new window.XMLHttpRequest();
+            proCallback && proCallback(xhr);
+            return xhr;
+        },
+        success: function (result) {
+            return sucCallback && sucCallback(result);
+        },
+        error: function (err) {
+            console.log('post_err', err);
+            return errCallback && errCallback(err);
+        }
+    });
+};
 util.getGeoLocation = function(callback) {
     var self = this;
     console.log('getGeoLocation', window.navigator.geolocation);

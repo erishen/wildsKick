@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Video Upload</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <% if (env === "production") { %>
+    <link rel="stylesheet" href="wildsPAGE/videoUpload/index.css?v=<%= version %>" />
+    <% } %>
+</head>
+<body>
+<div class="wildskick-video-upload">
+    <div class="upload-area">
+        <input type="file" name="file" id="js_file" />
+        <button class="btn btn-unclick" id="js_upload">上传</button>
+        <div class="row">
+            <span id="js_progress"></span>
+        </div>
+        <div class="row">
+            <img id="js_image" width="200" />
+        </div>
+    </div>
+</div>
+<script src="wildsPAGE/videoUpload/bundle.js?v=<%= version %>" type="text/javascript"></script>
+<% if (env !== "production" && reload === true) { %>
+<script src="reload/reload.js"></script>
+<% } %>
+</body>
+</html>
