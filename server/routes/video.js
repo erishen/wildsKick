@@ -14,6 +14,7 @@ var version = require('../config/version');
 var videoConfig = require('../config/video');
 var videoMysql = require('../service/videoMysql');
 var systemService = require('../service/system');
+var md5Service = require('../service/md5');
 
 var rootName = videoConfig.dictionary;
 var uploadDictionary = rootName + '/uploads/';
@@ -47,10 +48,24 @@ var getOneFile = function(pathName, fileStat, filesArray){
             var fileSuffixsLen = fileSuffixs.length;
             for(var i = 0; i < fileSuffixsLen; i++){
                 if(pathSuffix == fileSuffixs[i]){
+
+                    //console.log('pathName', pathName);
+                    var lastIndex = pathName.lastIndexOf('/');
+                    var fileName = pathName;
+                    if(lastIndex != -1){
+                        fileName = pathName.substring(lastIndex+1);
+                    }
+                    //console.log('fileName', fileName);
+
+                    var fileSize = fileStat.size;
+                    var mtimeMs = fileStat.mtimeMs;
+                    var fileKey = md5Service(fileName + ':' + fileSize);
+
                     filesArray.push({
+                        fileKey: fileKey,
                         pathName: pathName,
-                        mtimeMs: fileStat.mtimeMs,
-                        size: fileStat.size
+                        mtimeMs: mtimeMs,
+                        size: fileSize
                     });
                 }
             }
@@ -98,7 +113,7 @@ router.get('/videoTag', function(req, res){
 
 // 视频上传页面
 router.get('/videoUpload', function(req, res){
-    res.render('video/upload', { version: version });
+    res.render('video/upload', { version: version, ip: systemService.getIPAdress() });
 });
 
 var createDictionary = function(index, array, callback){
@@ -137,6 +152,7 @@ router.post('/videoUploadTo', uploadMulter.single('upload-file'), function(req, 
         res.json({ flag: false });
         return;
     }
+
     // 输出文件信息
     console.log('====================================================');
     console.log('fieldname: ' + req.file.fieldname);
@@ -162,31 +178,61 @@ router.post('/videoUploadTo', uploadMulter.single('upload-file'), function(req, 
 
     createDictionary(0, dicArray, function(){
         // 重命名文件
+        var fileSize = req.file.size;
+        var fileName = req.file.originalname;
         var oldPath = req.file.path;
-        var newPath = newDictionary + req.file.originalname;
+        var newPath = newDictionary + fileName;
 
         fs.rename(oldPath, newPath, function(err){
+            var newFilePathName = newPath.replace(rootName, '');
             if (err) {
-                res.json({ flag: false });
+                res.json({ flag: true, playUrl: newFilePathName });
                 console.log('rename_err', err);
+                fs.unlinkSync(oldPath);
             } else {
-                res.json({ flag: true });
-
-                if(redisFlag){
-                    redisClient = redis.createClient();
+                if(redisFlag && mimeType.indexOf('video') != -1){
+                    var fileKey = md5Service(fileName + ':' + fileSize);
                     var newFilesArray = [];
-
+                    redisClient = redis.createClient();
                     redisClient.get(videoFilesKey, function (err, replies) {
-                        console.log('replies: ' + replies);
-                        if(replies != undefined && replies != '[]'){
-                            newFilesArray = JSON.parse(replies, true);
-                        }
+                        if(!err){
+                            console.log('replies: ' + replies);
+                            if(replies != undefined && replies != '[]'){
+                                newFilesArray = JSON.parse(replies, true);
+                            }
 
-                        var newFileStat = fs.lstatSync(newPath);
-                        getOneFile(newPath, newFileStat, newFilesArray);
-                        console.log('newFilesArray', newFilesArray);
-                        redisClient.set(videoFilesKey, JSON.stringify(newFilesArray), 'EX', expireSeconds);
+                            var appendFlag = true;
+                            var newFilesArrayLen = newFilesArray.length;
+
+                            for(var i = 0; i < newFilesArrayLen; i++){
+                                var newFileObj = newFilesArray[i];
+                                var newFileKey = newFileObj.fileKey;
+
+                                if(fileKey == newFileKey)
+                                {
+                                    newFilePathName = newFileObj.pathName;
+                                    appendFlag = false;
+                                    break;
+                                }
+                            }
+
+                            if(appendFlag){
+                                var newFileStat = fs.lstatSync(newPath);
+                                getOneFile(newPath, newFileStat, newFilesArray);
+                                console.log('newFilesArray', newFilesArray);
+                                redisClient.set(videoFilesKey, JSON.stringify(newFilesArray), 'EX', expireSeconds);
+                            }
+
+                            res.json({ flag: true, playUrl: newFilePathName });
+                        }
+                        else {
+                            res.json({ flag: false });
+                            console.log('redis_err', err);
+                        }
                     });
+                }
+                else {
+                    res.json({ flag: true });
                 }
             }
         });
@@ -199,15 +245,16 @@ router.get('/getVideoList', function(req, res) {
 
     if(redisFlag && redisClient){
         redisClient.get(videoFilesKey, function (err, replies) {
-            console.log('replies: ' + replies);
-            if(replies == undefined || replies == '[]'){
-                getAllFiles(rootName, files);
-                redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
+            if(!err) {
+                console.log('replies: ' + replies);
+                if(replies == undefined || replies == '[]'){
+                    getAllFiles(rootName, files);
+                    redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
+                }
+                else {
+                    files = JSON.parse(replies, true);
+                }
             }
-            else {
-                files = JSON.parse(replies, true);
-            }
-
             res.send({ files: files });
         });
     }
@@ -228,23 +275,25 @@ router.get('/getVideoIndexFiles', function(req, res) {
         redisClient.get(videoFilesKey, function (fileErr, fileReplies) {
             redisClient.get(videoIndexKey, function (indexErr, indexReplies) {
 
-                if(indexReplies != undefined && indexReplies != ''){
-                    var indexArr = indexReplies.split('.');
-                    var indexArrLen = indexArr.length;
+                if(!fileErr && !indexErr) {
+                    if(indexReplies != undefined && indexReplies != ''){
+                        var indexArr = indexReplies.split('.');
+                        var indexArrLen = indexArr.length;
 
-                    if(indexArrLen > 0)
-                        index = parseInt(indexArr[0], 10);
+                        if(indexArrLen > 0)
+                            index = parseInt(indexArr[0], 10);
 
-                    if(indexArrLen > 1)
-                        status = indexArr[1];
-                }
+                        if(indexArrLen > 1)
+                            status = indexArr[1];
+                    }
 
-                if(fileReplies == undefined || fileReplies == '[]'){
-                    getAllFiles(rootName, files);
-                    redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
-                }
-                else {
-                    files = JSON.parse(fileReplies, true);
+                    if(fileReplies == undefined || fileReplies == '[]'){
+                        getAllFiles(rootName, files);
+                        redisClient.set(videoFilesKey, JSON.stringify(files), 'EX', expireSeconds);
+                    }
+                    else {
+                        files = JSON.parse(fileReplies, true);
+                    }
                 }
 
                 res.send({ files: files, index: index, status: status });

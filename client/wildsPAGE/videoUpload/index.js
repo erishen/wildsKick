@@ -5,6 +5,13 @@ var _ = require('../../js/lib/lodash.min');
 var moment = require('../../js/lib/moment-with-locales.min');
 var util = require('../../js/helper/util');
 var videoService = require('../../js/service/video');
+var videoUI = require('../../js/ui/video');
+
+var videoId = 'my_video_1';
+var playerUrl = 'http://vjs.zencdn.net/v/oceans.mp4';
+var coverImageUrl = 'http://vjs.zencdn.net/v/oceans.png';
+var urlPrefix = 'http://' + window.ip + ':9999';
+var player = null;
 
 var uploadFileName = '';
 var uploadFile = null;
@@ -27,6 +34,10 @@ $('#js_file').change(function(e){
         };
         reader.readAsDataURL(uploadFile);
     }
+
+    if(player){
+        videoUI.pause(player);
+    }
 });
 
 $('#js_upload').click(function(e){
@@ -40,13 +51,34 @@ $('#js_upload').click(function(e){
 
         util.ajaxPostFile('/video/videoUploadTo', formData, function(result){
             console.log('upload_result', result);
+            if(result){
+                var flag = result.flag;
+                if(flag){
+                    var playUrl = result.playUrl;
+
+                    if(playUrl){
+                        playerUrl = urlPrefix + playUrl;
+                        $('#js_videoContent').css('display', 'flex');
+                        if(!player)
+                            player = videoUI.init(videoId, '', playerUrl);
+                        else
+                            videoUI.setPlayerUrl(player, playerUrl);
+
+                        if(player){
+                            setTimeout(function(){
+                                videoUI.play(player);
+                            }, 1000);
+                        }
+                    }
+                }
+            }
         }, function(xhr){
             if(xhr){
                 xhr.upload.onprogress = function(event){
                     console.log('upload_event', event);
                     if (event.lengthComputable) {
                         var complete = Number.parseInt(event.loaded / event.total * 100);
-                        $('#js_progress').html(uploadFileName + ' ' + complete + '%');
+                        $('#js_progress').html(uploadFileName + ' <span class="progress-num">' + complete + '%</span>');
                     }
                 };
             }
