@@ -14,13 +14,38 @@ var version = require('../config/version');
 var videoConfig = require('../config/video');
 var videoMysql = require('../service/videoMysql');
 var systemService = require('../service/system');
-var md5Service = require('../service/md5');
+var md5 = require('../../public/wildsCOMMON/md5');
 
 var rootName = videoConfig.dictionary;
 var uploadDictionary = rootName + '/uploads/';
-var uploadMulter = multer({ dest: uploadDictionary });
+
 var redisFlag = true;
 var newUploadDictionary = '';
+var uploadArray = [];
+
+var createFolder = function(folder){
+    try{
+        fs.accessSync(folder);
+    }catch(e){
+        fs.mkdirSync(folder);
+    }
+};
+
+createFolder(uploadDictionary);
+
+// 通过 filename 属性定制
+var storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDictionary);    // 保存的路径，备注：需要自己创建
+    },
+    filename: function (req, file, cb) {
+        // 将保存文件名设置为 字段名 + 时间戳，比如 logo-1478521468943
+        cb(null, file.fieldname + '-' + Date.now());
+    }
+});
+
+// 通过 storage 选项来对 上传行为 进行定制化
+var uploadMulter = multer({ storage: storage });
 
 // 测试数据
 //rootName = 'D:/ERISHEN';
@@ -59,7 +84,7 @@ var getOneFile = function(pathName, fileStat, filesArray){
 
                     var fileSize = fileStat.size;
                     var mtimeMs = fileStat.mtimeMs;
-                    var fileKey = md5Service(fileName + ':' + fileSize);
+                    var fileKey = md5(fileName + ':' + fileSize);
 
                     filesArray.push({
                         fileKey: fileKey,
@@ -116,6 +141,7 @@ router.get('/videoUpload', function(req, res){
     res.render('video/upload', { version: version, ip: systemService.getIPAdress() });
 });
 
+// 创建文件夹
 var createDictionary = function(index, array, callback){
 
     if(index == 0)
@@ -132,7 +158,12 @@ var createDictionary = function(index, array, callback){
                 }
                 else {
                     console.log('mkdir_err', err);
-                    return callback && callback();
+                    if(index < arrayLen - 1){
+                        index++;
+                        return createDictionary(index, array, callback);
+                    }
+                    else
+                        return callback && callback();
                 }
             });
         }
@@ -145,8 +176,89 @@ var createDictionary = function(index, array, callback){
     }
 };
 
+// 分片文件合并
+var uploadStreamFile = function(needMergeFileNames, newStream, callback){
+    if(!needMergeFileNames.length){
+        newStream.end('Done');
+        return callback && callback();
+    }
+
+    var needMergeFileName = uploadDictionary + '/' + needMergeFileNames.shift();
+    var stream = fs.createReadStream(needMergeFileName);
+    stream.pipe(newStream, { end: false });
+    stream.on('end', function(){
+        console.log(needMergeFileName + ' appended');
+        fs.unlinkSync(needMergeFileName);
+        uploadStreamFile(needMergeFileNames, newStream, callback);
+    })
+};
+
+// 处理新上传的文件
+var handleNewFile = function(newPath, originFileKey, callback){
+    var newFilePathName = newPath.replace(rootName, '');
+    var pathObj = newPath.split('.');
+    var pathObjLen = pathObj.length;
+    var videoFlag = false;
+
+    if(pathObjLen > 1) {
+        var pathSuffix = pathObj[1].toLowerCase();
+        var fileSuffixs = videoConfig.fileSuffixs;
+        var fileSuffixsLen = fileSuffixs.length;
+        for (var i = 0; i < fileSuffixsLen; i++) {
+            if (pathSuffix == fileSuffixs[i]) {
+                videoFlag = true;
+                break;
+            }
+        }
+    }
+
+    if(redisFlag && videoFlag){
+        var newFilesArray = [];
+        redisClient = redis.createClient();
+        redisClient.get(videoFilesKey, function (err, replies) {
+            if(!err){
+                console.log('replies: ' + replies);
+                if(replies != undefined && replies != '[]'){
+                    newFilesArray = JSON.parse(replies, true);
+                }
+
+                var appendFlag = true;
+                var newFilesArrayLen = newFilesArray.length;
+
+                for(var i = 0; i < newFilesArrayLen; i++){
+                    var newFileObj = newFilesArray[i];
+                    var newFileKey = newFileObj.fileKey;
+
+                    if(originFileKey == newFileKey)
+                    {
+                        newFilePathName = newFileObj.pathName;
+                        appendFlag = false;
+                        break;
+                    }
+                }
+
+                if(appendFlag){
+                    var newFileStat = fs.lstatSync(newPath);
+                    getOneFile(newPath, newFileStat, newFilesArray);
+                    console.log('newFilesArray', newFilesArray);
+                    redisClient.set(videoFilesKey, JSON.stringify(newFilesArray), 'EX', expireSeconds);
+                }
+
+                return callback && callback({ flag: true, playUrl: newFilePathName });
+            }
+            else {
+                console.log('redis_err', err);
+                return callback && callback({ flag: false });
+            }
+        });
+    }
+    else {
+        return callback && callback({ flag: true });
+    }
+};
+
 // 视频上传
-router.post('/videoUploadTo', uploadMulter.single('upload-file'), function(req, res){
+router.post('/videoUploadTo', uploadMulter.single('uploadFile'), function(req, res){
     // 没有附带文件
     if (!req.file) {
         res.json({ flag: false });
@@ -163,80 +275,98 @@ router.post('/videoUploadTo', uploadMulter.single('upload-file'), function(req, 
     console.log('destination: ' + req.file.destination);
     console.log('filename: ' + req.file.filename);
     console.log('path: ' + req.file.path);
+    console.log('req.body: ', req.body);
 
-    // 根据上传日期创建文件夹
-    var mimeType = req.file.mimetype;
-    mimeType = mimeType.split('/').join('_');
-    var today = moment().format('YYYY-MM-DD');
+    var tmpFileName = req.file.filename;
+    var fileSize = parseInt(req.file.size, 10);
+    var reqBody = req.body;
+    var hadUploadSize = parseInt(reqBody.hadUploadSize, 10);
+    var originFileKey = reqBody.fileKey;
+    var originFileName = reqBody.fileName;
+    var originFileSize = parseInt(reqBody.fileSize, 10);
 
-    var dicArray = [mimeType, today];
-    var dicArrayLen = dicArray.length;
-    var newDictionary = uploadDictionary;
-    for(var i = 0; i < dicArrayLen; i++){
-        newDictionary += dicArray[i] + '/';
+    console.log('originFileKey', originFileKey, originFileName, originFileSize);
+
+    var uploadFlag = false;
+
+    if(fileSize == originFileSize){ // 文件没有分片上传
+        uploadFlag = true;
     }
+    else { // 文件分片上传
+        var keyFlag = false;
+        var uploadArrayLen = uploadArray.length;
+        for(var i = 0; i < uploadArrayLen; i++){
+            var uploadObj = uploadArray[i];
+            var uploadFileKey = uploadObj.fileKey;
+            var uploadFileSize = uploadObj.fileSize;
 
-    createDictionary(0, dicArray, function(){
-        // 重命名文件
-        var fileSize = req.file.size;
-        var fileName = req.file.originalname;
-        var oldPath = req.file.path;
-        var newPath = newDictionary + fileName;
-
-        fs.rename(oldPath, newPath, function(err){
-            var newFilePathName = newPath.replace(rootName, '');
-            if (err) {
-                res.json({ flag: true, playUrl: newFilePathName });
-                console.log('rename_err', err);
-                fs.unlinkSync(oldPath);
-            } else {
-                if(redisFlag && mimeType.indexOf('video') != -1){
-                    var fileKey = md5Service(fileName + ':' + fileSize);
-                    var newFilesArray = [];
-                    redisClient = redis.createClient();
-                    redisClient.get(videoFilesKey, function (err, replies) {
-                        if(!err){
-                            console.log('replies: ' + replies);
-                            if(replies != undefined && replies != '[]'){
-                                newFilesArray = JSON.parse(replies, true);
-                            }
-
-                            var appendFlag = true;
-                            var newFilesArrayLen = newFilesArray.length;
-
-                            for(var i = 0; i < newFilesArrayLen; i++){
-                                var newFileObj = newFilesArray[i];
-                                var newFileKey = newFileObj.fileKey;
-
-                                if(fileKey == newFileKey)
-                                {
-                                    newFilePathName = newFileObj.pathName;
-                                    appendFlag = false;
-                                    break;
-                                }
-                            }
-
-                            if(appendFlag){
-                                var newFileStat = fs.lstatSync(newPath);
-                                getOneFile(newPath, newFileStat, newFilesArray);
-                                console.log('newFilesArray', newFilesArray);
-                                redisClient.set(videoFilesKey, JSON.stringify(newFilesArray), 'EX', expireSeconds);
-                            }
-
-                            res.json({ flag: true, playUrl: newFilePathName });
-                        }
-                        else {
-                            res.json({ flag: false });
-                            console.log('redis_err', err);
-                        }
-                    });
+            if(uploadFileKey == originFileKey){
+                keyFlag = true;
+                if(fileSize + uploadFileSize == originFileSize)
+                {
+                    uploadFlag = true;
                 }
                 else {
-                    res.json({ flag: true });
+                    uploadObj.fileSize = fileSize + uploadFileSize;
                 }
+                uploadObj.fileNames.push(tmpFileName);
+                break;
+            }
+        }
+
+        if(!keyFlag){
+            uploadArray.push({ fileKey: originFileKey, fileSize: fileSize, fileNames: [ tmpFileName ] });
+        }
+    }
+
+    if(uploadFlag){ // 文件通过multer上传完毕，进行处理
+        // 根据上传日期创建文件夹
+        var today = moment().format('YYYY-MM-DD');
+        console.log('today', today);
+
+        var dicArray = [today];
+        var dicArrayLen = dicArray.length;
+        var newDictionary = uploadDictionary;
+        for(var i = 0; i < dicArrayLen; i++){
+            newDictionary += dicArray[i] + '/';
+        }
+
+        var newPath = newDictionary + originFileName;
+        createDictionary(0, dicArray, function(){
+            console.log('uploadArray', uploadArray);
+            var uploadArrayLen = uploadArray.length;
+            if(uploadArrayLen > 0){
+                var needMergeFileNames = uploadArray[0].fileNames;
+                var newStreamPath = fs.createWriteStream(newPath);
+                // 分片文件合并
+                uploadStreamFile(needMergeFileNames, newStreamPath, function(){
+                    uploadArray.length = 0;
+                    handleNewFile(newPath, originFileKey, function(result){
+                        res.json(result);
+                    });
+                });
+            }
+            else {
+                // 重命名文件
+                var oldPath = req.file.path;
+                fs.rename(oldPath, newPath, function(err){
+                    if (err) {
+                        var newFilePathName = newPath.replace(rootName, '');
+                        res.json({ flag: true, playUrl: newFilePathName });
+                        console.log('rename_err', err);
+                        fs.unlinkSync(oldPath);
+                    } else {
+                        handleNewFile(newPath, originFileKey, function(result){
+                            res.json(result);
+                        });
+                    }
+                });
             }
         });
-    });
+    }
+    else { // 只是传了分片，还要继续上传其他分片
+        res.json({ flag: false, uploadFlag: true, hadUploadSize: hadUploadSize + fileSize });
+    }
 });
 
 // 视频列表
