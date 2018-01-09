@@ -154,6 +154,7 @@ $('#js_upload').click(function(e){
         var fileSize = uploadFile.size;
         var fileKey = md5(fileName + ':' + fileSize);
         uploadFileSize = fileSize;
+        uploadHadUploaded = 0;
 
         postUploadFile(fileKey, fileSize, 0, function(){
             uploadFile = null;
