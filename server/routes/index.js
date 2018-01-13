@@ -4,4 +4,5 @@ module.exports = function (app) {
     app.use('/seniverse', require('./seniverse'));
     app.use('/inke', require('./inke'));
     app.use('/static', require('./static'));
+    app.use('/ffmpeg', require('./ffmpeg'));
 };

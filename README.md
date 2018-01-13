@@ -25,6 +25,7 @@
     * 增加标签: http://localhost:3000/videoTagAdd?name=..,..
     * 删除标签: http://localhost:3000/videoTagDel?name=..,..
     * 清理标签: http://localhost:3000/videoTagClean
+    * ffmpeg all mov to mp4: http://localhost:3000/ffmpeg
     * 映客视频随机播放: http://localhost:3000/inke?R
     * 映客视频单个播放: http://localhost:3000/inke?U=..&L=..
     * 天气按城市显示:   http://localhost:3000/seniverse?L=..
