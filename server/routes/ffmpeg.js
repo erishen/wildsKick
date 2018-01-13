@@ -11,21 +11,41 @@ var videoConfig = require('../config/video');
 
 var rootName = videoConfig.dictionary;
 
-var doFFmpeg = function(pathName, pathPrefix){
-    if(pathName != '' && pathPrefix != ''){
-        var command = 'ffmpeg -y -i ' + pathName + ' -vcodec copy -acodec copy ' + pathPrefix + '.mp4';
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`exec error: ${error}`);
-                return;
-            }
-            //console.log(`stdout: ${stdout}`);
-            //console.log(`stderr: ${stderr}`);
+var doFFmpeg = function(index, filesArray, callback){
+    if(filesArray) {
+        var filesArrayLen = filesArray.length;
+        console.log('doFFmpeg', index, filesArrayLen);
 
-            setTimeout(function(){
-                fs.unlinkSync(pathName);
-            }, 2000);
-        });
+        if(index >= 0 && index < filesArrayLen){
+            var fileObj = filesArray[index];
+            var pathName = fileObj.pathName;
+            var pathPrefix = fileObj.pathPrefix;
+
+            if (pathName != '' && pathPrefix != '') {
+                var command = 'ffmpeg -y -i ' + pathName + ' -vcodec copy -acodec copy ' + pathPrefix + '.mp4';
+                exec(command, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`exec error: ${error}`);
+                        return;
+                    }
+                    //console.log(`stdout: ${stdout}`);
+                    //console.log(`stderr: ${stderr}`);
+
+                    setTimeout(function () {
+                        fs.unlinkSync(pathName);
+
+                        index++;
+                        doFFmpeg(index, filesArray, callback);
+                    }, 2000);
+                });
+            }
+        }
+        else {
+            return callback && callback();
+        }
+    }
+    else {
+        return callback && callback();
     }
 };
 
@@ -45,8 +65,7 @@ var getAllFiles = function(dictionaryName, filesArray){
                 var pathSuffix = pathObj[1].toLowerCase();
                 if(pathSuffix == 'mov'){
                     //console.log('fileStat', fileStat);
-                    filesArray.push(pathName);
-                    doFFmpeg(pathName, pathPrefix);
+                    filesArray.push({ pathName: pathName, pathPrefix: pathPrefix });
                 }
             }
         }
@@ -60,6 +79,7 @@ router.get('/', function(req, res) {
     var filesArray = [];
     getAllFiles(rootName, filesArray);
     res.send(filesArray);
+    doFFmpeg(0, filesArray);
 });
 
 module.exports = router;
