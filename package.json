@@ -9,6 +9,7 @@
   "author": "Erishen Sun",
   "main": "app.js",
   "scripts": {
+    "dev": "cross-env NODE_ENV=dev supervisor -w server,app.js -e node,js,html app",
     "start": "cross-env NODE_ENV=dev supervisor -w server,app.js -e node,js,html app",
     "browsersync": "cross-env NODE_ENV=dev node app_browsersync",
     "build": "webpack",

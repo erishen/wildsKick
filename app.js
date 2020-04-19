@@ -24,6 +24,11 @@ if (isDev) {
 
     var compiler = webpack(webpackDevConfig);
 
+    const ignored = [
+        /[\\/]\.git[\\/]/,
+        /[\\/]node_modules[\\/]/
+    ];
+
     // attach to the compiler & the server
     app.use(webpackDevMiddleware(compiler, {
 
@@ -32,9 +37,15 @@ if (isDev) {
         noInfo: true,
         stats: {
             colors: true
-        }
+        },
+        logLevel: 'silent',
+        watchOptions: { ignored },
+        //writeToDisk: true
     }));
-    app.use(webpackHotMiddleware(compiler));
+    app.use(webpackHotMiddleware(compiler, {
+        log: false,
+        heartbeat: 2500
+    }));
 
     app.use(express.static(path.join(__dirname, 'public')));
     require('./server/routes')(app);
